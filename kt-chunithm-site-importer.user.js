@@ -4,7 +4,8 @@
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @author	 beerpsi
-// @match    https://chunithm-net-eng.com/mobile/*
+// @match    https://chunithm-net-eng.com/mobile/home/
+// @match    https://chunithm-net-eng.com/mobile/record/*
 // @require  https://cdn.jsdelivr.net/npm/@trim21/gm-fetch
 // ==/UserScript==
 
