@@ -250,9 +250,6 @@ function calculateLamp(lampImages, judgements = {}) {
   const fc = lampImages.some((i) => i.includes("icon_fullcombo"));
   const aj = lampImages.some((i) => i.includes("icon_alljustice"));
 
-  if (!clear) {
-    return "FAILED";
-  }
   if (fc) {
     return "FULL COMBO";
   }
@@ -266,7 +263,7 @@ function calculateLamp(lampImages, judgements = {}) {
     }
     return "ALL JUSTICE";
   }
-  return "CLEAR";
+  return clear ? "CLEAR" : "FAILED";
 }
 
 function getDifficulty(row, selector) {
