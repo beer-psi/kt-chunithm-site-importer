@@ -70,7 +70,7 @@ function submitApiKey(event) {
 function addNav() {
   const navHtml = document.createElement("div");
   navHtml.style =
-    "color: rgb(255, 255, 255); padding: 1rem; margin: 1rem auto; display: block; width: 460px; border-radius: 0.5rem; border: 3px solid rgb(85, 102, 119); background-color: rgb(34, 51, 68); text-align: left; line-height: 1.2rem; font-size: 12px; float: left;";
+    "color: rgb(255, 255, 255); padding: 1rem; margin: 1rem auto; display: block; width: 460px; border-radius: 0.5rem; border: 3px solid rgb(85, 102, 119); background-color: rgb(34, 51, 68); text-align: left; line-height: 1.2rem; font-size: 12px;";
 
   const apiKeyText =
     "You don't have an API key set up. Please set up an API key before proceeding.";
