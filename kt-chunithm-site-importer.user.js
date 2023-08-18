@@ -33,12 +33,23 @@ if (typeof GM_fetch !== "undefined") {
   fetch = GM_fetch;
 }
 
-function getApiKey() {
-  return localStorage.getItem(`${LS_API_KEY_KEY}_${KT_SELECTED_CONFIG}`);
+/**
+ *
+ * @param {string} key
+ * @returns
+ */
+function getPreference(key) {
+  return localStorage.getItem(`__ktimport__${key}_${KT_SELECTED_CONFIG}`);
 }
 
-function setApiKey(value) {
-  return localStorage.setItem(`${LS_API_KEY_KEY}_${KT_SELECTED_CONFIG}`, value);
+/**
+ *
+ * @param {string} key
+ * @param {any} value
+ * @returns
+ */
+function setPreference(key, value) {
+  return localStorage.setItem(`__ktimport__${key}_${KT_SELECTED_CONFIG}`, value.toString());
 }
 
 function setupApiKey() {
@@ -46,7 +57,7 @@ function setupApiKey() {
   const inputHtml = `
 	<div id="api-key-setup">
 	  <form id="api-key-form">
-		<input type="text" id="api-key-form-key" placeholder="Copy API Key here"/>
+		<input type="text" id="api-key-form-key" placeholder="Copy API key here"/>
 		<input type="submit" value="Save"/>
 	  </form>
 	</div>
@@ -62,7 +73,7 @@ function submitApiKey(event) {
   event.preventDefault();
 
   const apiKey = document.querySelector("#api-key-form-key").value;
-  setApiKey(apiKey);
+  setPreference("api-key", apiKey)
 
   location.reload();
 }
@@ -76,12 +87,12 @@ function addNav() {
     "You don't have an API key set up. Please set up an API key before proceeding.";
   const apiKeyParagraph = document.createElement("p");
 
-  if (!getApiKey()) {
+  if (!getPreference("api-key")) {
     apiKeyParagraph.append(document.createTextNode(apiKeyText));
     apiKeyParagraph.append(document.createElement("br"));
   }
 
-  let apiKeyLink = getApiKey()
+  let apiKeyLink = getPreference("api-key")
     ? "Reconfigure API key (if broken)"
     : "Set up API key";
 
@@ -93,7 +104,7 @@ function addNav() {
   apiKeyParagraph.append(apiKeySetup);
 
   navHtml.append(apiKeyParagraph);
-  if (getApiKey()) {
+  if (getPreference("api-key")) {
     const navRecent = document.createElement("a");
     const navRecentText = "Import recent scores (preferred)";
     navRecent.onclick = async () => {
@@ -123,7 +134,7 @@ function addNav() {
 
 function insertImportButton(message, onClick) {
   if (
-    !getApiKey() &&
+    !getPreference("api-key") &&
     window.confirm(
       "You don't have an API key set up. Please set up an API key before proceeding."
     )
@@ -157,11 +168,18 @@ function updateStatus(message) {
   statusElem.innerText = message;
 }
 
-async function pollStatus(url, dan) {
+/**
+ *
+ * @param {string} url
+ * @param {string} dan
+ * @param {Date} latestScoreDate
+ * @returns
+ */
+async function pollStatus(url, dan, latestScoreDate) {
   const req = await fetch(url, {
     method: "GET",
     headers: {
-      Authorization: `Bearer ${getApiKey()}`,
+      Authorization: `Bearer ${getPreference("api-key")}`,
     },
   });
 
@@ -179,7 +197,7 @@ async function pollStatus(url, dan) {
         " Progress: " +
         body.body.progress.description
     );
-    setTimeout(pollStatus, 1000, url, dan);
+    setTimeout(pollStatus, 1000, url, dan, latestScoreDate);
     return;
   }
 
@@ -197,6 +215,7 @@ async function pollStatus(url, dan) {
       }
     }
     updateStatus(message);
+    setPreference("latest-score-date", latestScoreDate.valueOf());
     return;
   }
 
@@ -205,6 +224,11 @@ async function pollStatus(url, dan) {
 }
 
 async function submitScores(scores, dan) {
+  if (scores.length === 0) {
+    updateStatus("No scores to import.");
+    return;
+  }
+
   const body = {
     meta: {
       game: "chunithm",
@@ -219,7 +243,7 @@ async function submitScores(scores, dan) {
   const req = fetch(`${KT_BASE_URL}/ir/direct-manual/import`, {
     method: "POST",
     headers: {
-      Authorization: "Bearer " + getApiKey(),
+      Authorization: "Bearer " + getPreference("api-key"),
       "Content-Type": "application/json",
       "X-User-Intent": "true",
     },
@@ -232,9 +256,10 @@ async function submitScores(scores, dan) {
   const json = await (await req).json();
   // if json.success
   const pollUrl = json.body.url;
+  const latestScoreDate = scores[0].timeAchieved;
 
   updateStatus("Importing scores...");
-  pollStatus(pollUrl, dan);
+  pollStatus(pollUrl, dan, latestScoreDate);
 }
 
 function getNumber(document, selector) {
@@ -287,8 +312,34 @@ function getDifficulty(row, selector) {
   return difficulty;
 }
 
+/**
+ *
+ * @param {string} timestamp
+ * @returns
+ */
+function parseDate(timestamp) {
+  const match = timestamp.match(
+    "([0-9]{4})/([0-9]{1,2})/([0-9]{1,2}) ([0-9]{1,2}):([0-9]{2})"
+  );
+  let [_, year, month, day, hour, minute] = match;
+  month = month.padStart(2, "0");
+  day = day.padStart(2, "0");
+  hour = hour.padStart(2, "0");
+
+  // Construct iso-8601 time
+  const isoTime = `${year}-${month}-${day}T${hour}:${minute}:00.000+09:00`;
+  // Parse with Date, then get unix time
+  return new Date(isoTime);
+}
+
 async function executeRecentImport(docu = document) {
-  const scoresElems = docu.querySelectorAll(".frame02.w400");
+  const latestScoreDate = Number(getPreference("latest-score-date") ?? "0");
+
+  const scoresElems = [...docu.querySelectorAll(".frame02.w400")].filter(e => {
+    const dateString = e.querySelector(".play_datalist_date, .box_inner01").innerText;
+    const date = parseDate(dateString);
+    return date.valueOf() > latestScoreDate;
+  });
   let scoresList = [];
 
   for (let i = 0; i < scoresElems.length; i++) {
