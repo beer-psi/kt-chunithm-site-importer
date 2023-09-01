@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.1.0
+// @version  0.1.1
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @author	 beerpsi
@@ -171,11 +171,10 @@ function updateStatus(message) {
 /**
  *
  * @param {string} url
- * @param {string} dan
  * @param {Date} latestScoreDate
  * @returns
  */
-async function pollStatus(url, dan, latestScoreDate) {
+async function pollStatus(url, latestScoreDate) {
   const req = await fetch(url, {
     method: "GET",
     headers: {
@@ -197,7 +196,7 @@ async function pollStatus(url, dan, latestScoreDate) {
         " Progress: " +
         body.body.progress.description
     );
-    setTimeout(pollStatus, 1000, url, dan, latestScoreDate);
+    setTimeout(pollStatus, 1000, url, latestScoreDate);
     return;
   }
 
@@ -205,15 +204,14 @@ async function pollStatus(url, dan, latestScoreDate) {
     console.log(body.body);
     let message =
       body.description + ` ${body.body.import.scoreIDs.length} scores`;
-    if (dan) {
-      message += ` and Dan ${dan}`;
-    }
+
     if (body.body.import.errors.length > 0) {
       message += `, ${body.body.import.errors.length} errors (see console log for details)`;
       for (const error of body.body.import.errors) {
         console.log(`${error.type}: ${error.message}`);
       }
     }
+
     updateStatus(message);
     setPreference("latest-score-date", latestScoreDate.valueOf());
     return;
@@ -223,7 +221,14 @@ async function pollStatus(url, dan, latestScoreDate) {
   updateStatus(body.description);
 }
 
-async function submitScores(scores, dan) {
+/**
+ *
+ * @param {{ scores: any[], saveLatestTimestamp: boolean }} options
+ * @returns
+ */
+async function submitScores(options) {
+  const { scores = [], saveLatestTimestamp = false } = options;
+
   if (scores.length === 0) {
     updateStatus("No scores to import.");
     return;
@@ -256,10 +261,12 @@ async function submitScores(scores, dan) {
   const json = await (await req).json();
   // if json.success
   const pollUrl = json.body.url;
-  const latestScoreDate = scores[0].timeAchieved;
+  const latestScoreDate = scores.length > 0 && saveLatestTimestamp
+		? Math.max(...scores.map(s => s.timeAchieved.valueOf()))
+		: null;
 
   updateStatus("Importing scores...");
-  pollStatus(pollUrl, dan, latestScoreDate);
+  pollStatus(pollUrl, latestScoreDate);
 }
 
 function getNumber(document, selector) {
@@ -410,7 +417,7 @@ async function executeRecentImport(docu = document) {
 
     scoresList.push(scoreData);
   }
-  submitScores(scoresList);
+  await submitScores({ scores: scoresList, saveLatestTimestamp: true });
 }
 
 function warnPbImport() {
@@ -486,10 +493,8 @@ async function executePBImport() {
   }
 
   document.querySelector("#kt-import-pb-warning")?.remove();
-  submitScores(scoresList);
+  await submitScores({ scores: scoresList });
 }
-
-console.log("running");
 
 if (!document.cookie.split(";").some((row) => row.startsWith("_t="))) {
   alert("Please login to CHUNITHM-NET first.");
