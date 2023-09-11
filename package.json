@@ -5,13 +5,14 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "rollup -c rollup.config.js"
+    "build": "esbuild --bundle --minify ./kt-chunithm-site-importer.user.js --outfile=./kt-chunithm-site-importer.min.js"
   },
   "keywords": [],
   "author": "beerpsi",
   "license": "0BSD",
   "devDependencies": {
     "@rollup/plugin-terser": "~0.4.0",
+    "esbuild": "~0.19.2",
     "rollup": "~3.20.2"
   }
 }

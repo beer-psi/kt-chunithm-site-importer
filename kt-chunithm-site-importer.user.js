@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.1.1
+// @version  0.2.0
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @author	 beerpsi
@@ -28,6 +28,7 @@ const KT_BASE_URL = KT_CONFIGS[KT_SELECTED_CONFIG].baseUrl;
 const KT_CLIENT_ID = KT_CONFIGS[KT_SELECTED_CONFIG].clientId;
 const LS_API_KEY_KEY = "__ktimport__api-key";
 const DIFFICULTIES = ["Basic", "Advanced", "Expert", "Master", "Ultima"];
+const SKILL_CLASSES = ["", "DAN_I", "DAN_II", "DAN_III", "DAN_IV", "DAN_V", "DAN_INFINITE"];
 
 if (typeof GM_fetch !== "undefined") {
   fetch = GM_fetch;
@@ -125,6 +126,13 @@ function addNav() {
     navPb.append(navPbText);
     navPb.append(document.createElement("br"));
     navHtml.append(navPb);
+
+    const navDan = document.createElement("a");
+    const navDanText = "Import dan and emblem";
+    navDan.onclick = () => { executeDanImport(document); }
+    navDan.append(navDanText);
+    navDan.append(document.createElement("br"));
+    navHtml.append(navDan);
   }
   document
     .querySelector(".clearfix")
@@ -174,7 +182,7 @@ function updateStatus(message) {
  * @param {Date} latestScoreDate
  * @returns
  */
-async function pollStatus(url, latestScoreDate) {
+async function pollStatus(url, options, latestScoreDate) {
   const req = await fetch(url, {
     method: "GET",
     headers: {
@@ -196,7 +204,7 @@ async function pollStatus(url, latestScoreDate) {
         " Progress: " +
         body.body.progress.description
     );
-    setTimeout(pollStatus, 1000, url, latestScoreDate);
+    setTimeout(pollStatus, 1000, url, options, latestScoreDate);
     return;
   }
 
@@ -204,6 +212,13 @@ async function pollStatus(url, latestScoreDate) {
     console.log(body.body);
     let message =
       body.description + ` ${body.body.import.scoreIDs.length} scores`;
+    
+    if (options.dan) {
+      body.description += ` and dan ${options.dan}`
+    }
+    if (options.emblem) {
+      body.description += ` and emblem ${options.emblem}`
+    }
 
     if (body.body.import.errors.length > 0) {
       message += `, ${body.body.import.errors.length} errors (see console log for details)`;
@@ -227,11 +242,19 @@ async function pollStatus(url, latestScoreDate) {
  * @returns
  */
 async function submitScores(options) {
-  const { scores = [], saveLatestTimestamp = false } = options;
+  const { scores = [], dan = null, emblem = null, saveLatestTimestamp = false } = options;
 
-  if (scores.length === 0) {
-    updateStatus("No scores to import.");
+  if (scores.length === 0 && dan === null && emblem === null) {
+    updateStatus("Nothing to import.");
     return;
+  }
+
+  const classes = {};
+  if (dan !== null) {
+    classes.dan = dan;
+  }
+  if (emblem != null) {
+    classes.emblem = emblem;
   }
 
   const body = {
@@ -241,6 +264,7 @@ async function submitScores(options) {
       service: "site-importer",
     },
     scores,
+    classes,
   };
 
   console.log(JSON.stringify(body));
@@ -266,7 +290,7 @@ async function submitScores(options) {
 		: null;
 
   updateStatus("Importing scores...");
-  pollStatus(pollUrl, latestScoreDate);
+  pollStatus(pollUrl, options, latestScoreDate);
 }
 
 function getNumber(document, selector) {
@@ -494,6 +518,16 @@ async function executePBImport() {
 
   document.querySelector("#kt-import-pb-warning")?.remove();
   await submitScores({ scores: scoresList });
+}
+
+async function executeDanImport(docu = document) {
+  const danElement = docu.querySelector(".player_classemblem_top img")
+  const dan = danElement ? SKILL_CLASSES[Number(danElement.src.split("_").slice(-1)[0].split(".")[0])] : null;
+
+  const emblemElement = docu.querySelector(".player_classemblem_base img");
+  const emblem = emblemElement ? SKILL_CLASSES[Number(emblemElement.src.split("_").slice(-1)[0].split(".")[0])] : null;
+
+  await submitScores({ dan, emblem });
 }
 
 if (!document.cookie.split(";").some((row) => row.startsWith("_t="))) {
