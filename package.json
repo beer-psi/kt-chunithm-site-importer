@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "esbuild --bundle --minify ./kt-chunithm-site-importer.user.js --outfile=./kt-chunithm-site-importer.min.js"
+    "build": "node build.js"
   },
   "keywords": [],
   "author": "beerpsi",
@@ -13,6 +13,8 @@
   "devDependencies": {
     "@rollup/plugin-terser": "~0.4.0",
     "esbuild": "~0.19.2",
-    "rollup": "~3.20.2"
+    "eslint": "~8.18.0",
+    "eslint-plugin-cadence": "~0.1.0",
+    "typescript": "~4.9.4"
   }
 }

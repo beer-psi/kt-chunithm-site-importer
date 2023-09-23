@@ -1,0 +1,30 @@
+{
+	"plugins": [
+		"cadence"
+	],
+	"extends": [
+		"plugin:cadence/recommended"
+	],
+	"root": true,
+	"rules": {},
+	"overrides": [
+		{
+			"files": [
+				"**/*.ts"
+			],
+			"rules": {
+				// broken
+				"lines-around-comment": "off",
+
+				// TENPORARILY OFF AS THEY'RE BROKEN.
+				"@typescript-eslint/no-unsafe-assignment": "off",
+				"@typescript-eslint/no-unsafe-return": "off",
+				"@typescript-eslint/no-unsafe-argument": "off",
+				"@typescript-eslint/no-unsafe-member-access": "off",
+				"@typescript-eslint/no-unsafe-property-computation": "off",
+				"@typescript-eslint/no-unsafe-call": "off",
+				"@typescript-eslint/strict-boolean-expressions": "off"
+			}
+		}
+	]
+}
