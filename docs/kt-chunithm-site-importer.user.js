@@ -79,7 +79,9 @@ function getDifficulty(row, selector) {
   return difficulty;
 }
 function calculateLamp(lampImages, judgements) {
-  const clear = lampImages.some((i) => i.includes("icon_clear"));
+  const clear = lampImages.some(
+    (i) => i.includes("icon_clear") || i.includes("icon_hard") || i.includes("icon_absolute") || i.includes("icon_absolutep") || i.includes("icon_catastrophy")
+  );
   const fc = lampImages.some((i) => i.includes("icon_fullcombo"));
   const aj = lampImages.some((i) => i.includes("icon_alljustice"));
   if (aj) {
