@@ -107,14 +107,23 @@ function updateStatus(message) {
   statusElem.innerText = message;
 }
 async function* TraverseRecents(doc = document, fetchScoresSince = 0) {
-  const scoreElems = doc.querySelectorAll(".frame02.w400");
-  let status = "Fetching scores";
-  if (fetchScoresSince) {
-    status = `${status} newer than ${new Date(fetchScoresSince).toLocaleDateString()}`;
-  }
-  status = `${status}...`;
-  updateStatus(status);
+  const scoreElems = Array.prototype.filter.call(
+    doc.querySelectorAll(".frame02.w400"),
+    (e, i) => {
+      const timestamp = e.querySelector(
+        ".play_datalist_date, .box_inner01"
+      )?.innerText;
+      if (!timestamp) {
+        console.warn(`Could not retrieve timestamp for score with index ${i}.`);
+        return true;
+      }
+      const timeAchieved = parseDate(timestamp).valueOf();
+      return timeAchieved > fetchScoresSince;
+    }
+  );
+  const sinceDateString = fetchScoresSince ? ` since ${new Date(fetchScoresSince).toLocaleDateString()}...` : "...";
   for (let i = 0; i < scoreElems.length; i++) {
+    updateStatus(`Fetching score ${i + 1}/${scoreElems.length}${sinceDateString}`);
     const e = scoreElems[i];
     if (!e) {
       console.warn(
@@ -125,14 +134,7 @@ async function* TraverseRecents(doc = document, fetchScoresSince = 0) {
     const timestamp = e.querySelector(
       ".play_datalist_date, .box_inner01"
     )?.innerText;
-    if (!timestamp) {
-      console.warn(`Could not retrieve timestamp for score with index ${i}.`);
-      continue;
-    }
-    const timeAchieved = parseDate(timestamp).valueOf();
-    if (timeAchieved < fetchScoresSince) {
-      break;
-    }
+    const timeAchieved = timestamp ? parseDate(timestamp).valueOf() : null;
     const difficulty = getDifficulty(e, ".play_track_result img");
     if (difficulty === "WORLD'S END") {
       continue;

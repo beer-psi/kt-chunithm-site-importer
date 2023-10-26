@@ -245,19 +245,31 @@ function updateStatus(message: string) {
 }
 
 async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) {
-	const scoreElems = doc.querySelectorAll(".frame02.w400");
+	const scoreElems: Array<Element> = Array.prototype.filter.call(
+		doc.querySelectorAll(".frame02.w400"),
+		(e: Element, i: number) => {
+			const timestamp = e.querySelector<HTMLElement>(
+				".play_datalist_date, .box_inner01"
+			)?.innerText;
 
-	let status = "Fetching scores";
+			if (!timestamp) {
+				console.warn(`Could not retrieve timestamp for score with index ${i}.`);
+				return true;
+			}
 
-	if (fetchScoresSince) {
-		status = `${status} newer than ${new Date(fetchScoresSince).toLocaleDateString()}`;
-	}
+			const timeAchieved = parseDate(timestamp).valueOf();
 
-	status = `${status}...`;
+			return timeAchieved > fetchScoresSince;
+		}
+	);
 
-	updateStatus(status);
+	const sinceDateString = fetchScoresSince
+		? ` since ${new Date(fetchScoresSince).toLocaleDateString()}...`
+		: "...";
 
 	for (let i = 0; i < scoreElems.length; i++) {
+		updateStatus(`Fetching score ${i + 1}/${scoreElems.length}${sinceDateString}`);
+
 		const e = scoreElems[i];
 
 		if (!e) {
@@ -271,19 +283,7 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 			".play_datalist_date, .box_inner01"
 		)?.innerText;
 
-		if (!timestamp) {
-			console.warn(`Could not retrieve timestamp for score with index ${i}.`);
-			continue;
-		}
-
-		const timeAchieved = parseDate(timestamp).valueOf();
-
-		// On CHUNITHM-NET, recent plays are chronologically ordered, latest score first.
-		// If this score is older than the provided threshold, we can safely assume
-		// the rest are also older.
-		if (timeAchieved < fetchScoresSince) {
-			break;
-		}
+		const timeAchieved = timestamp ? parseDate(timestamp).valueOf() : null;
 
 		const difficulty = getDifficulty(e, ".play_track_result img");
 
@@ -302,6 +302,7 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 			continue;
 		}
 
+		// Not trying to DDOS CHUNITHM-NET.
 		// eslint-disable-next-line no-await-in-loop
 		const detailText = await fetch("/mobile/record/playlog/sendPlaylogDetail/", {
 			method: "POST",
@@ -364,6 +365,7 @@ async function* TraversePersonalBests(doc: Document = document) {
 
 	for (const difficulty of DIFFICULTIES) {
 		updateStatus(`Fetching scores for ${difficulty}...`);
+		// Not trying to DDOS CHUNITHM-NET.
 		// eslint-disable-next-line no-await-in-loop
 		const resp = await fetch(`/mobile/record/musicGenre/send${difficulty}`, {
 			method: "POST",
@@ -506,6 +508,8 @@ async function ExecuteRecentImport(doc: Document = document) {
 	let latestTimestamp = 0;
 
 	for await (const score of TraverseRecents(doc, latestScoreDate)) {
+		// what the hell is this supposed to mean timeAchieved is obviously null.
+		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 		latestTimestamp = Math.max(score.timeAchieved ?? 0, latestTimestamp);
 		scores.push(score);
 	}
