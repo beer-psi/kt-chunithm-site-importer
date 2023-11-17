@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.3.0
+// @version  0.3.1
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @author	 beerpsi
@@ -23,7 +23,7 @@ const BASE_URL =
 if (!document.cookie.split(";").some((row) => row.startsWith("_t="))) {
 	// eslint-disable-next-line no-alert
 	alert("Please login to CHUNITHM-NET first.");
-	location.href = "https://chunithm-net-eng.com";
+	location.href = BASE_URL;
 }
 
 declare const GM_fetch: typeof fetch | undefined;

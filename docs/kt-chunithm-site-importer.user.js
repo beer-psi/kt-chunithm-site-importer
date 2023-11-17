@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.3.0
+// @version  0.3.1
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @author	 beerpsi
@@ -18,7 +18,7 @@ var REGION = location.hostname === "chunithm-net-eng.com" ? "intl" : "jp";
 var BASE_URL = REGION === "intl" ? "https://chunithm-net-eng.com/mobile" : "https://new.chunithm-net.com/chuni-mobile/html/mobile";
 if (!document.cookie.split(";").some((row) => row.startsWith("_t="))) {
   alert("Please login to CHUNITHM-NET first.");
-  location.href = "https://chunithm-net-eng.com";
+  location.href = BASE_URL;
 }
 if (typeof GM_fetch !== "undefined") {
   window.fetch = GM_fetch;
