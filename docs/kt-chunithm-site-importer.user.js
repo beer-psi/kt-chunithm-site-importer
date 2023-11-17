@@ -1,15 +1,21 @@
+/* eslint-disable no-console */
+/* eslint-disable camelcase */
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.2.0
+// @version  0.3.0
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @author	 beerpsi
 // @match    https://chunithm-net-eng.com/mobile/home/
 // @match    https://chunithm-net-eng.com/mobile/record/*
+// @match	 https://new.chunithm-net.com/chuni-mobile/html/mobile/home/
+// @match    https://new.chunithm-net.com/chuni-mobile/html/mobile/record/*
 // @require  https://cdn.jsdelivr.net/npm/@trim21/gm-fetch
 // ==/UserScript==
 
 // kt-chunithm-site-importer.user.ts
+var REGION = location.hostname === "chunithm-net-eng.com" ? "intl" : "jp";
+var BASE_URL = REGION === "intl" ? "https://chunithm-net-eng.com/mobile" : "https://new.chunithm-net.com/chuni-mobile/html/mobile";
 if (!document.cookie.split(";").some((row) => row.startsWith("_t="))) {
   alert("Please login to CHUNITHM-NET first.");
   location.href = "https://chunithm-net-eng.com";
@@ -131,14 +137,26 @@ async function* TraverseRecents(doc = document, fetchScoresSince = 0) {
       );
       continue;
     }
-    const timestamp = e.querySelector(
-      ".play_datalist_date, .box_inner01"
-    )?.innerText;
-    const timeAchieved = timestamp ? parseDate(timestamp).valueOf() : null;
     const difficulty = getDifficulty(e, ".play_track_result img");
     if (difficulty === "WORLD'S END") {
       continue;
     }
+    const timestamp = e.querySelector(
+      ".play_datalist_date, .box_inner01"
+    )?.innerText;
+    const timeAchieved = timestamp ? parseDate(timestamp).valueOf() : null;
+    const score = getNumber(e, ".play_musicdata_score_text");
+    const lampImages = [
+      ...e.querySelectorAll(".play_musicdata_icon img")
+    ].map((e2) => e2.src);
+    const scoreData = {
+      score,
+      lamp: calculateLamp(lampImages),
+      matchType: "inGameID",
+      identifier: "",
+      difficulty,
+      timeAchieved
+    };
     const idx = e.querySelector("input[name=idx]")?.value;
     const token = e.querySelector("input[name=token]")?.value;
     if (!idx || !token) {
@@ -147,7 +165,7 @@ async function* TraverseRecents(doc = document, fetchScoresSince = 0) {
       );
       continue;
     }
-    const detailText = await fetch("/mobile/record/playlog/sendPlaylogDetail/", {
+    const detailText = await fetch(`${BASE_URL}/record/playlog/sendPlaylogDetail/`, {
       method: "POST",
       body: `idx=${idx}&token=${token}`,
       headers: {
@@ -159,7 +177,22 @@ async function* TraverseRecents(doc = document, fetchScoresSince = 0) {
       ".play_data_detail_ranking_btn input[name=idx]"
     )?.value;
     if (!identifier) {
-      console.warn(`Missing inGameID input element for score index ${i}`);
+      console.warn(
+        `Missing inGameID element for score ${i + 1}. Yielding incomplete score with songTitle matching, which may cause inaccuracies.`
+      );
+      if (REGION === "jp") {
+        console.log(
+          "To retrieve full score details, you may need to purchase the Standard Course subscription: https://otogame-net.com/chunithm"
+        );
+      }
+      const title = e.querySelector(".play_musicdata_title")?.innerText;
+      if (!title) {
+        console.error(`Could not get song title for score ${i + 1}. Skipping this score.`);
+        continue;
+      }
+      scoreData.identifier = title;
+      scoreData.matchType = "songTitle";
+      yield scoreData;
       continue;
     }
     const judgements = {
@@ -168,20 +201,12 @@ async function* TraverseRecents(doc = document, fetchScoresSince = 0) {
       attack: getNumber(detailDocument, ".text_attack"),
       miss: getNumber(detailDocument, ".text_miss")
     };
-    const lampImages = [
-      ...detailDocument.querySelectorAll(".play_musicdata_icon img")
-    ].map((e2) => e2.src);
-    const scoreData = {
-      score: getNumber(detailDocument, ".play_musicdata_score_text"),
-      lamp: calculateLamp(lampImages, judgements),
-      matchType: "inGameID",
-      identifier,
-      difficulty,
-      timeAchieved,
-      judgements,
-      optional: {
-        maxCombo: getNumber(detailDocument, ".play_data_detail_maxcombo_block")
-      }
+    scoreData.identifier = identifier;
+    scoreData.matchType = "inGameID";
+    scoreData.lamp = calculateLamp(lampImages, judgements);
+    scoreData.judgements = judgements;
+    scoreData.optional = {
+      maxCombo: getNumber(detailDocument, ".play_data_detail_maxcombo_block")
     };
     yield scoreData;
   }
@@ -194,7 +219,7 @@ async function* TraversePersonalBests(doc = document) {
   }
   for (const difficulty of DIFFICULTIES) {
     updateStatus(`Fetching scores for ${difficulty}...`);
-    const resp = await fetch(`/mobile/record/musicGenre/send${difficulty}`, {
+    const resp = await fetch(`${BASE_URL}/record/musicGenre/send${difficulty}`, {
       method: "POST",
       body: `genre=99&token=${token}`,
       headers: {
@@ -363,7 +388,7 @@ async function submitApiKey(event) {
 function insertImportButton(message, onClick) {
   if (!getPreference("api-key") && // eslint-disable-next-line no-alert
   confirm("You don't have an API key set up. Please set up an API key before proceeding.")) {
-    location.href = "https://chunithm-net-eng.com/mobile/home/";
+    location.href = `${BASE_URL}/home/`;
   }
   const importButton = document.createElement("a");
   importButton.id = "kt-import-button";
@@ -394,7 +419,7 @@ function addNav() {
     const navRecent = document.createElement("a");
     const navRecentText = "Import recent scores (preferred)";
     navRecent.onclick = async () => {
-      const req = await fetch("/mobile/record/playlog");
+      const req = await fetch(`${BASE_URL}/record/playlog`);
       const docu = new DOMParser().parseFromString(await req.text(), "text/html");
       await ExecuteRecentImport(docu);
     };
@@ -438,21 +463,21 @@ function warnPbImport() {
 	`;
   newImportButton.insertAdjacentHTML("afterend", pbWarning);
 }
-switch (location.pathname) {
-  case "/mobile/record/musicGenre":
-  case "/mobile/record/musicWord":
-  case "/mobile/record/musicRank":
-  case "/mobile/record/musicLevel": {
+switch (location.href.replace(BASE_URL, "")) {
+  case "/record/musicGenre":
+  case "/record/musicWord":
+  case "/record/musicRank":
+  case "/record/musicLevel": {
     insertImportButton("IMPORT ALL PBs", warnPbImport);
     break;
   }
-  case "/mobile/record/playlog": {
+  case "/record/playlog": {
     insertImportButton("IMPORT RECENT SCORES", async () => {
       await ExecuteRecentImport(document);
     });
     break;
   }
-  case "/mobile/home/": {
+  case "/home/": {
     addNav();
     break;
   }

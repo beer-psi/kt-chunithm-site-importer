@@ -2,14 +2,23 @@
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.2.0
+// @version  0.3.0
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @author	 beerpsi
 // @match    https://chunithm-net-eng.com/mobile/home/
 // @match    https://chunithm-net-eng.com/mobile/record/*
+// @match	 https://new.chunithm-net.com/chuni-mobile/html/mobile/home/
+// @match    https://new.chunithm-net.com/chuni-mobile/html/mobile/record/*
 // @require  https://cdn.jsdelivr.net/npm/@trim21/gm-fetch
 // ==/UserScript==
+
+const REGION = location.hostname === "chunithm-net-eng.com" ? "intl" : "jp";
+
+const BASE_URL =
+	REGION === "intl"
+		? "https://chunithm-net-eng.com/mobile"
+		: "https://new.chunithm-net.com/chuni-mobile/html/mobile";
 
 if (!document.cookie.split(";").some((row) => row.startsWith("_t="))) {
 	// eslint-disable-next-line no-alert
@@ -245,8 +254,8 @@ function updateStatus(message: string) {
 }
 
 async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) {
-	const scoreElems: Array<Element> = Array.prototype.filter.call(
-		doc.querySelectorAll(".frame02.w400"),
+	const scoreElems: Array<HTMLElement> = Array.prototype.filter.call(
+		doc.querySelectorAll<HTMLElement>(".frame02.w400"),
 		(e: Element, i: number) => {
 			const timestamp = e.querySelector<HTMLElement>(
 				".play_datalist_date, .box_inner01"
@@ -279,18 +288,31 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 			continue;
 		}
 
-		const timestamp = e.querySelector<HTMLElement>(
-			".play_datalist_date, .box_inner01"
-		)?.innerText;
-
-		const timeAchieved = timestamp ? parseDate(timestamp).valueOf() : null;
-
 		const difficulty = getDifficulty(e, ".play_track_result img");
 
 		if (difficulty === "WORLD'S END") {
 			// we don't accept world's end scores
 			continue;
 		}
+
+		const timestamp = e.querySelector<HTMLElement>(
+			".play_datalist_date, .box_inner01"
+		)?.innerText;
+		const timeAchieved = timestamp ? parseDate(timestamp).valueOf() : null;
+
+		const score = getNumber(e, ".play_musicdata_score_text");
+		const lampImages = [
+			...e.querySelectorAll<HTMLImageElement>(".play_musicdata_icon img"),
+		].map((e) => e.src);
+
+		const scoreData: BatchManualScore = {
+			score,
+			lamp: calculateLamp(lampImages),
+			matchType: "inGameID",
+			identifier: "",
+			difficulty,
+			timeAchieved,
+		};
 
 		const idx = e.querySelector<HTMLInputElement>("input[name=idx]")?.value;
 		const token = e.querySelector<HTMLInputElement>("input[name=token]")?.value;
@@ -304,7 +326,7 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 
 		// Not trying to DDOS CHUNITHM-NET.
 		// eslint-disable-next-line no-await-in-loop
-		const detailText = await fetch("/mobile/record/playlog/sendPlaylogDetail/", {
+		const detailText = await fetch(`${BASE_URL}/record/playlog/sendPlaylogDetail/`, {
 			method: "POST",
 			body: `idx=${idx}&token=${token}`,
 			headers: {
@@ -318,7 +340,31 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 		)?.value;
 
 		if (!identifier) {
-			console.warn(`Missing inGameID input element for score index ${i}`);
+			// This either happens because CHUNITHM-NET International is massively fucked,
+			// or if you haven't paid for Standard Course subscription in CHUNITHM-NET Japan.
+			console.warn(
+				`Missing inGameID element for score ${
+					i + 1
+				}. Yielding incomplete score with songTitle matching, which may cause inaccuracies.`
+			);
+
+			if (REGION === "jp") {
+				console.log(
+					"To retrieve full score details, you may need to purchase the Standard Course subscription: https://otogame-net.com/chunithm"
+				);
+			}
+
+			const title = e.querySelector<HTMLDivElement>(".play_musicdata_title")?.innerText;
+
+			if (!title) {
+				console.error(`Could not get song title for score ${i + 1}. Skipping this score.`);
+				continue;
+			}
+
+			scoreData.identifier = title;
+			scoreData.matchType = "songTitle";
+
+			yield scoreData;
 			continue;
 		}
 
@@ -329,21 +375,12 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 			miss: getNumber(detailDocument, ".text_miss"),
 		};
 
-		const lampImages = [
-			...detailDocument.querySelectorAll<HTMLImageElement>(".play_musicdata_icon img"),
-		].map((e) => e.src);
-
-		const scoreData: BatchManualScore = {
-			score: getNumber(detailDocument, ".play_musicdata_score_text"),
-			lamp: calculateLamp(lampImages, judgements),
-			matchType: "inGameID",
-			identifier,
-			difficulty,
-			timeAchieved,
-			judgements,
-			optional: {
-				maxCombo: getNumber(detailDocument, ".play_data_detail_maxcombo_block"),
-			},
+		scoreData.identifier = identifier;
+		scoreData.matchType = "inGameID";
+		scoreData.lamp = calculateLamp(lampImages, judgements);
+		scoreData.judgements = judgements;
+		scoreData.optional = {
+			maxCombo: getNumber(detailDocument, ".play_data_detail_maxcombo_block"),
 		};
 
 		yield scoreData;
@@ -367,7 +404,7 @@ async function* TraversePersonalBests(doc: Document = document) {
 		updateStatus(`Fetching scores for ${difficulty}...`);
 		// Not trying to DDOS CHUNITHM-NET.
 		// eslint-disable-next-line no-await-in-loop
-		const resp = await fetch(`/mobile/record/musicGenre/send${difficulty}`, {
+		const resp = await fetch(`${BASE_URL}/record/musicGenre/send${difficulty}`, {
 			method: "POST",
 			body: `genre=99&token=${token}`,
 			headers: {
@@ -597,7 +634,7 @@ function insertImportButton(
 		// eslint-disable-next-line no-alert
 		confirm("You don't have an API key set up. Please set up an API key before proceeding.")
 	) {
-		location.href = "https://chunithm-net-eng.com/mobile/home/";
+		location.href = `${BASE_URL}/home/`;
 	}
 
 	const importButton = document.createElement("a");
@@ -650,7 +687,7 @@ function addNav() {
 		const navRecentText = "Import recent scores (preferred)";
 
 		navRecent.onclick = async () => {
-			const req = await fetch("/mobile/record/playlog");
+			const req = await fetch(`${BASE_URL}/record/playlog`);
 			const docu = new DOMParser().parseFromString(await req.text(), "text/html");
 
 			await ExecuteRecentImport(docu);
@@ -708,23 +745,23 @@ function warnPbImport() {
 	newImportButton.insertAdjacentHTML("afterend", pbWarning);
 }
 
-switch (location.pathname) {
-	case "/mobile/record/musicGenre":
-	case "/mobile/record/musicWord":
-	case "/mobile/record/musicRank":
-	case "/mobile/record/musicLevel": {
+switch (location.href.replace(BASE_URL, "")) {
+	case "/record/musicGenre":
+	case "/record/musicWord":
+	case "/record/musicRank":
+	case "/record/musicLevel": {
 		insertImportButton("IMPORT ALL PBs", warnPbImport);
 		break;
 	}
 
-	case "/mobile/record/playlog": {
+	case "/record/playlog": {
 		insertImportButton("IMPORT RECENT SCORES", async () => {
 			await ExecuteRecentImport(document);
 		});
 		break;
 	}
 
-	case "/mobile/home/": {
+	case "/home/": {
 		addNav();
 		break;
 	}

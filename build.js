@@ -1,14 +1,18 @@
 import { buildSync } from "esbuild";
 import { readFileSync } from "fs";
 
-const userscriptHeader = `// ==UserScript==
+const userscriptHeader = `/* eslint-disable no-console */
+/* eslint-disable camelcase */
+// ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.2.0
+// @version  0.3.0
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @author	 beerpsi
 // @match    https://chunithm-net-eng.com/mobile/home/
 // @match    https://chunithm-net-eng.com/mobile/record/*
+// @match	 https://new.chunithm-net.com/chuni-mobile/html/mobile/home/
+// @match    https://new.chunithm-net.com/chuni-mobile/html/mobile/record/*
 // @require  https://cdn.jsdelivr.net/npm/@trim21/gm-fetch
 // ==/UserScript==`;
 
