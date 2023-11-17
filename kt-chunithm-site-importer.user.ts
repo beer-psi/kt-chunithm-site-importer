@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.3.1
+// @version  0.3.2
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @author	 beerpsi
@@ -48,8 +48,11 @@ const KT_CONFIGS = {
 const KT_BASE_URL = KT_CONFIGS[KT_SELECTED_CONFIG].baseUrl;
 const KT_CLIENT_ID = KT_CONFIGS[KT_SELECTED_CONFIG].clientId;
 
+const MAX_SCORE = 1_010_000;
 const DIFFICULTIES = ["Basic", "Advanced", "Expert", "Master", "Ultima"] as const;
 const SKILL_CLASSES = ["DAN_I", "DAN_II", "DAN_III", "DAN_IV", "DAN_V", "DAN_INFINITE"] as const;
+
+type ChunithmLamps = "ALL JUSTICE CRITICAL" | "ALL JUSTICE" | "CLEAR" | "FAILED" | "FULL COMBO";
 
 interface Classes {
 	dan?: typeof SKILL_CLASSES[number];
@@ -67,7 +70,7 @@ interface BatchManualScore {
 	matchType: string;
 	difficulty: string;
 	score: number;
-	lamp: string;
+	lamp: ChunithmLamps;
 	judgements?: {
 		jcrit: number;
 		justice: number;
@@ -210,7 +213,7 @@ function getDifficulty(row: Element, selector: string) {
 function calculateLamp(
 	lampImages: Array<string>,
 	judgements?: { jcrit: number; justice: number; attack: number; miss: number }
-): string {
+): ChunithmLamps {
 	const clear = lampImages.some(
 		(i) =>
 			i.includes("icon_clear") ||
@@ -307,7 +310,7 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 
 		const scoreData: BatchManualScore = {
 			score,
-			lamp: calculateLamp(lampImages),
+			lamp: score === MAX_SCORE ? "ALL JUSTICE CRITICAL" : calculateLamp(lampImages),
 			matchType: "inGameID",
 			identifier: "",
 			difficulty,
@@ -431,7 +434,7 @@ async function* TraversePersonalBests(doc: Document = document) {
 
 			const scoreData: BatchManualScore = {
 				score,
-				lamp: calculateLamp(lampImages),
+				lamp: score === MAX_SCORE ? "ALL JUSTICE CRITICAL" : calculateLamp(lampImages),
 				matchType: "inGameID",
 				identifier,
 				difficulty: difficulty.toUpperCase(),

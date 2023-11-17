@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.3.1
+// @version  0.3.2
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @author	 beerpsi
@@ -38,6 +38,7 @@ var KT_CONFIGS = {
 };
 var KT_BASE_URL = KT_CONFIGS[KT_SELECTED_CONFIG].baseUrl;
 var KT_CLIENT_ID = KT_CONFIGS[KT_SELECTED_CONFIG].clientId;
+var MAX_SCORE = 101e4;
 var DIFFICULTIES = ["Basic", "Advanced", "Expert", "Master", "Ultima"];
 var SKILL_CLASSES = ["DAN_I", "DAN_II", "DAN_III", "DAN_IV", "DAN_V", "DAN_INFINITE"];
 function getPreference(key, defaultValue = null) {
@@ -151,7 +152,7 @@ async function* TraverseRecents(doc = document, fetchScoresSince = 0) {
     ].map((e2) => e2.src);
     const scoreData = {
       score,
-      lamp: calculateLamp(lampImages),
+      lamp: score === MAX_SCORE ? "ALL JUSTICE CRITICAL" : calculateLamp(lampImages),
       matchType: "inGameID",
       identifier: "",
       difficulty,
@@ -240,7 +241,7 @@ async function* TraversePersonalBests(doc = document) {
       ].map((e2) => e2.src);
       const scoreData = {
         score,
-        lamp: calculateLamp(lampImages),
+        lamp: score === MAX_SCORE ? "ALL JUSTICE CRITICAL" : calculateLamp(lampImages),
         matchType: "inGameID",
         identifier,
         difficulty: difficulty.toUpperCase()
