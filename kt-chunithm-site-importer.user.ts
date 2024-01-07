@@ -568,14 +568,14 @@ async function ExecuteDanImport(docu: Document = document) {
 	const danIndex = Number(danElement?.src.split("_").slice(-1)[0]?.split(".")[0] ?? "0");
 
 	if (danIndex > 0) {
-		classes.dan = SKILL_CLASSES[danIndex];
+		classes.dan = SKILL_CLASSES[danIndex - 1];
 	}
 
 	const emblemElement = docu.querySelector<HTMLImageElement>(".player_classemblem_base img");
 	const emblemIndex = Number(emblemElement?.src.split("_").slice(-1)[0]?.split(".")[0] ?? "0");
 
 	if (emblemIndex > 0) {
-		classes.emblem = SKILL_CLASSES[emblemIndex];
+		classes.emblem = SKILL_CLASSES[emblemIndex - 1];
 	}
 
 	await SubmitScores({ classes });
