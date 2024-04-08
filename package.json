@@ -1,6 +1,6 @@
 {
   "name": "kt-chunithm-site-importer",
-  "version": "0.3.2",
+  "version": "0.3.4",
   "description": "",
   "main": "index.js",
   "type": "module",
