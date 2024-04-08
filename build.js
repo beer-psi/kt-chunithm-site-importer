@@ -8,6 +8,7 @@ const userscriptHeader = `/* eslint-disable no-console */
 // @version  0.3.3
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
+// @connect  kamai.tachi.ac
 // @author	 beerpsi
 // @match    https://chunithm-net-eng.com/mobile/home/
 // @match    https://chunithm-net-eng.com/mobile/record/*

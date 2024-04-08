@@ -5,6 +5,7 @@
 // @version  0.3.3
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
+// @connect  kamai.tachi.ac
 // @author	 beerpsi
 // @match    https://chunithm-net-eng.com/mobile/home/
 // @match    https://chunithm-net-eng.com/mobile/record/*
@@ -28,7 +29,7 @@ var KT_CONFIGS = {
   // 	clientId: "CI5ba595889dca0ebf15f700291084bbf26d199ee4",
   // },
   prod: {
-    baseUrl: "https://kamaitachi.xyz",
+    baseUrl: "https://kamai.tachi.ac",
     clientId: "CI2a215ade610e60ee433a1f1faf0f2615f250e80d"
   }
 };
