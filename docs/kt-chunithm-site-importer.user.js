@@ -82,17 +82,15 @@ function getDifficulty(row, selector) {
   }
   return difficulty;
 }
-function calculateLamp(lampImages, judgements) {
+function calculateLamp(lampImages) {
   const clear = lampImages.some(
     (i) => i.includes("icon_clear") || i.includes("icon_hard") || i.includes("icon_absolute") || i.includes("icon_absolutep") || i.includes("icon_catastrophy")
   );
   const fc = lampImages.some((i) => i.includes("icon_fullcombo"));
   const aj = lampImages.some((i) => i.includes("icon_alljustice"));
+  const ajc = lampImages.some((i) => i.includes("icon_alljusticecritical"));
   if (aj) {
-    if (judgements?.justice === 0 && judgements.attack === 0 && judgements.miss === 0) {
-      return "ALL JUSTICE CRITICAL";
-    }
-    return "ALL JUSTICE";
+    return ajc ? "ALL JUSTICE CRITICAL" : "ALL JUSTICE";
   }
   if (fc) {
     return "FULL COMBO";
@@ -201,7 +199,7 @@ async function* TraverseRecents(doc = document, fetchScoresSince = 0) {
     };
     scoreData.identifier = identifier;
     scoreData.matchType = "inGameID";
-    scoreData.lamp = calculateLamp(lampImages, judgements);
+    scoreData.lamp = calculateLamp(lampImages);
     scoreData.judgements = judgements;
     scoreData.optional = {
       maxCombo: getNumber(detailDocument, ".play_data_detail_maxcombo_block")
