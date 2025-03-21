@@ -1,11 +1,12 @@
 import { buildSync } from "esbuild";
-import { readFileSync } from "fs";
+import fs from "node:fs";
 
+const pkg = JSON.parse(fs.readFileSync("./package.json", "utf-8"));
 const userscriptHeader = `/* eslint-disable no-console */
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.3.5
+// @version  ${pkg.version}
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @connect  kamai.tachi.ac

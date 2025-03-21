@@ -209,6 +209,7 @@ function calculateLamp(lampImages: Array<string>): ChunithmLamps {
 	const clear = lampImages.some(
 		(i) =>
 			i.includes("icon_clear") ||
+			i.includes("icon_course_clear") ||
 			i.includes("icon_hard") ||
 			i.includes("icon_absolute") ||
 			i.includes("icon_absolutep") ||
