@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.3.6
+// @version  0.3.7
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @connect  kamai.tachi.ac
@@ -15,12 +15,9 @@
 // ==/UserScript==
 
 // kt-chunithm-site-importer.user.ts
+var __DEV__ = false;
 var REGION = location.hostname === "chunithm-net-eng.com" ? "intl" : "jp";
 var BASE_URL = REGION === "intl" ? "https://chunithm-net-eng.com/mobile" : "https://new.chunithm-net.com/chuni-mobile/html/mobile";
-if (typeof GM_fetch !== "undefined") {
-  window.fetch = GM_fetch;
-}
-console.log("KTIMPORT");
 var KT_LOCALSTORAGE_KEY_PREFIX = "__ktimport__";
 var KT_SELECTED_CONFIG = "prod";
 var KT_CONFIGS = {
@@ -38,6 +35,9 @@ var KT_CLIENT_ID = KT_CONFIGS[KT_SELECTED_CONFIG].clientId;
 var MAX_SCORE = 101e4;
 var DIFFICULTIES = ["Basic", "Advanced", "Expert", "Master", "Ultima"];
 var SKILL_CLASSES = ["DAN_I", "DAN_II", "DAN_III", "DAN_IV", "DAN_V", "DAN_INFINITE"];
+if (typeof GM_fetch !== "undefined") {
+  window.fetch = GM_fetch;
+}
 function getPreference(key, defaultValue = null) {
   return localStorage.getItem(`${KT_LOCALSTORAGE_KEY_PREFIX}${key}_${KT_SELECTED_CONFIG}`) ?? defaultValue;
 }
@@ -291,7 +291,11 @@ async function SubmitScores(options) {
     classes
   };
   const jsonBody = JSON.stringify(body);
-  console.debug(jsonBody);
+  console.debug(body);
+  if (__DEV__ && KT_SELECTED_CONFIG === "prod") {
+    console.log("Currently in development mode. Scores will not be uploaded to Kamaitachi.");
+    return;
+  }
   document.querySelector("#kt-import-button")?.remove();
   updateStatus("Submitting scores...");
   const resp = await fetch(

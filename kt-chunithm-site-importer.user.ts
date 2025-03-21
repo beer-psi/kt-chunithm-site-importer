@@ -14,20 +14,12 @@
 // @require  https://cdn.jsdelivr.net/npm/@trim21/gm-fetch
 // ==/UserScript==
 
+const __DEV__ = false;
 const REGION = location.hostname === "chunithm-net-eng.com" ? "intl" : "jp";
-
 const BASE_URL =
 	REGION === "intl"
 		? "https://chunithm-net-eng.com/mobile"
 		: "https://new.chunithm-net.com/chuni-mobile/html/mobile";
-
-declare const GM_fetch: typeof fetch | undefined;
-
-if (typeof GM_fetch !== "undefined") {
-	window.fetch = GM_fetch;
-}
-
-console.log("KTIMPORT");
 const KT_LOCALSTORAGE_KEY_PREFIX = "__ktimport__";
 const KT_SELECTED_CONFIG = "prod";
 const KT_CONFIGS = {
@@ -129,6 +121,12 @@ interface ImportCompletedStatus {
 }
 
 type ImportStatus = ImportCompletedStatus | ImportOngoingStatus;
+
+declare const GM_fetch: typeof fetch | undefined;
+
+if (typeof GM_fetch !== "undefined") {
+	window.fetch = GM_fetch;
+}
 
 function getPreference(key: string, defaultValue: string | null = null): string | null {
 	return (
@@ -496,7 +494,12 @@ async function SubmitScores(options: SubmitScoresOptions) {
 	};
 	const jsonBody = JSON.stringify(body);
 
-	console.debug(jsonBody);
+	console.debug(body);
+
+	if (__DEV__ && KT_SELECTED_CONFIG === "prod") {
+		console.log("Currently in development mode. Scores will not be uploaded to Kamaitachi.");
+		return;
+	}
 
 	document.querySelector("#kt-import-button")?.remove();
 	updateStatus("Submitting scores...");
