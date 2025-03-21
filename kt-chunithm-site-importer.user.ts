@@ -460,8 +460,6 @@ async function PollStatus(pollUrl: string, importOptions: SubmitScoresOptions) {
 
 	console.debug(body.body);
 
-	const { latestTimestamp } = importOptions;
-
 	let message = `${body.description} ${body.body.import.scoreIDs.length} scores`;
 
 	for (const raise of body.body.import.classDeltas) {
@@ -476,10 +474,6 @@ async function PollStatus(pollUrl: string, importOptions: SubmitScoresOptions) {
 	}
 
 	updateStatus(message);
-
-	if (latestTimestamp) {
-		setPreference("latest-score-date", latestTimestamp.toString());
-	}
 }
 
 async function SubmitScores(options: SubmitScoresOptions) {
@@ -531,27 +525,13 @@ async function SubmitScores(options: SubmitScoresOptions) {
 }
 
 async function ExecuteRecentImport(doc: Document = document) {
-	const latestScoreDate = Number(getPreference("latest-score-date") ?? "0");
+	const scores = await Array.fromAsync(TraverseRecents(doc));
 
-	const scores = [];
-	let latestTimestamp = 0;
-
-	for await (const score of TraverseRecents(doc, latestScoreDate)) {
-		// what the hell is this supposed to mean timeAchieved is obviously null.
-		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-		latestTimestamp = Math.max(score.timeAchieved ?? 0, latestTimestamp);
-		scores.push(score);
-	}
-
-	await SubmitScores({ scores, latestTimestamp });
+	await SubmitScores({ scores });
 }
 
 async function ExecutePbImport() {
-	const scores = [];
-
-	for await (const score of TraversePersonalBests(document)) {
-		scores.push(score);
-	}
+	const scores = await Array.fromAsync(TraversePersonalBests(document));
 
 	await SubmitScores({ scores });
 }

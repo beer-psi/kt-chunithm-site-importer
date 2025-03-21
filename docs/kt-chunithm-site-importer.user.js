@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.3.4
+// @version  0.3.5
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @connect  kamai.tachi.ac
@@ -263,7 +263,6 @@ async function PollStatus(pollUrl, importOptions) {
     return;
   }
   console.debug(body.body);
-  const { latestTimestamp } = importOptions;
   let message = `${body.description} ${body.body.import.scoreIDs.length} scores`;
   for (const raise of body.body.import.classDeltas) {
     message = `${message} and ${raise.set} ${raise.new}`;
@@ -275,9 +274,6 @@ async function PollStatus(pollUrl, importOptions) {
     }
   }
   updateStatus(message);
-  if (latestTimestamp) {
-    setPreference("latest-score-date", latestTimestamp.toString());
-  }
 }
 async function SubmitScores(options) {
   const { scores = [], classes } = options;
@@ -319,20 +315,11 @@ async function SubmitScores(options) {
   await PollStatus(pollUrl, options);
 }
 async function ExecuteRecentImport(doc = document) {
-  const latestScoreDate = Number(getPreference("latest-score-date") ?? "0");
-  const scores = [];
-  let latestTimestamp = 0;
-  for await (const score of TraverseRecents(doc, latestScoreDate)) {
-    latestTimestamp = Math.max(score.timeAchieved ?? 0, latestTimestamp);
-    scores.push(score);
-  }
-  await SubmitScores({ scores, latestTimestamp });
+  const scores = await Array.fromAsync(TraverseRecents(doc));
+  await SubmitScores({ scores });
 }
 async function ExecutePbImport() {
-  const scores = [];
-  for await (const score of TraversePersonalBests(document)) {
-    scores.push(score);
-  }
+  const scores = await Array.fromAsync(TraversePersonalBests(document));
   await SubmitScores({ scores });
 }
 async function ExecuteDanImport(docu = document) {

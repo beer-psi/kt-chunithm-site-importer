@@ -5,7 +5,7 @@ const userscriptHeader = `/* eslint-disable no-console */
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.3.4
+// @version  0.3.5
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @connect  kamai.tachi.ac

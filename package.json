@@ -1,6 +1,6 @@
 {
   "name": "kt-chunithm-site-importer",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "",
   "main": "index.js",
   "type": "module",
@@ -16,5 +16,13 @@
     "eslint": "~8.18.0",
     "eslint-plugin-cadence": "~0.1.0",
     "typescript": "~4.9.4"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "esbuild"
+    ],
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }
