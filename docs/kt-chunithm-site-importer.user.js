@@ -45,10 +45,10 @@ function setPreference(key, value) {
   localStorage.setItem(`${KT_LOCALSTORAGE_KEY_PREFIX}${key}_${KT_SELECTED_CONFIG}`, value);
 }
 var ChunithmNetError = class extends Error {
-  constructor(errCode, message) {
-    super(`CHUNITHM-NET error ${errCode}: ${message}`);
+  constructor(errCode, errDescription) {
+    super(`CHUNITHM-NET error ${errCode}: ${errDescription}`);
     this.errCode = errCode;
-    this.message = message;
+    this.errDescription = errDescription;
   }
 };
 var ChunithmNet = class {

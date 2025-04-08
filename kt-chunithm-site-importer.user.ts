@@ -140,8 +140,8 @@ function setPreference(key: string, value: string): void {
 }
 
 class ChunithmNetError extends Error {
-	constructor(public errCode: number, public message: string) {
-		super(`CHUNITHM-NET error ${errCode}: ${message}`);
+	constructor(public errCode: number, public errDescription: string) {
+		super(`CHUNITHM-NET error ${errCode}: ${errDescription}`);
 	}
 }
 
