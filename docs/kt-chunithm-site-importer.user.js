@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.3.7
+// @version  0.3.8
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @connect  kamai.tachi.ac
@@ -44,6 +44,69 @@ function getPreference(key, defaultValue = null) {
 function setPreference(key, value) {
   localStorage.setItem(`${KT_LOCALSTORAGE_KEY_PREFIX}${key}_${KT_SELECTED_CONFIG}`, value);
 }
+var ChunithmNetError = class extends Error {
+  constructor(errCode, message) {
+    super(`CHUNITHM-NET error ${errCode}: ${message}`);
+    this.errCode = errCode;
+    this.message = message;
+  }
+};
+var ChunithmNet = class {
+  constructor(baseUrl) {
+    this.baseUrl = baseUrl;
+    this.domParser = new DOMParser();
+    if (baseUrl.endsWith("/")) {
+      this.baseUrl = baseUrl.substring(0, baseUrl.length - 1);
+    }
+  }
+  async playlog() {
+    return this.request("/record/playlog");
+  }
+  async sendPlaylogDetail(idx, token) {
+    const body = new URLSearchParams({ idx, token });
+    return this.request("/record/playlog/sendPlaylogDetail/", {
+      method: "POST",
+      body,
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      }
+    });
+  }
+  async sendMusicDifficulty(difficulty, token) {
+    const body = new URLSearchParams({ genre: "99", token });
+    return this.request(`/record/musicGenre/send${difficulty}`, {
+      method: "POST",
+      body,
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      }
+    });
+  }
+  async request(path, init) {
+    const url = `${this.baseUrl}${path}`;
+    const resp = await fetch(url, init);
+    const respUrl = new URL(resp.url);
+    if (resp.status === 503) {
+      updateStatus("CHUNITHM-NET is undergoing maintenance.");
+      throw new Error("CHUNITHM-NET is undergoing maintenance.");
+    }
+    if (respUrl.pathname.endsWith("/error/")) {
+      const document2 = this.domParser.parseFromString(await resp.text(), "text/html");
+      const errorElems = document2.querySelectorAll(".block.text_l .font_small");
+      if (errorElems.length === 0) {
+        updateStatus("An unknown CHUNITHM-NET error occured.");
+        throw new ChunithmNetError(-1, "An unknown error occured.");
+      }
+      const errCodeElem = errorElems[0];
+      const errCode = errCodeElem?.textContent ? Number(errCodeElem.textContent.split(": ")[1]) : -1;
+      const errDescription = errorElems.length > 1 && errorElems[1].textContent ? errorElems[1].textContent : "An unknown error occured.";
+      updateStatus(`CHUNITHM-NET error ${errCode}: ${errDescription}`);
+      throw new ChunithmNetError(errCode, errDescription);
+    }
+    return resp;
+  }
+};
+var CHUNITHM_NET_INSTANCE = new ChunithmNet(BASE_URL);
 function getNumber(element, selector) {
   const numberToGet = element.querySelector(selector)?.innerText.replace(/,/gu, "");
   if (!numberToGet) {
@@ -161,13 +224,7 @@ async function* TraverseRecents(doc = document, fetchScoresSince = 0) {
       );
       continue;
     }
-    const detailText = await fetch(`${BASE_URL}/record/playlog/sendPlaylogDetail/`, {
-      method: "POST",
-      body: `idx=${idx}&token=${token}`,
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      }
-    }).then((r) => r.text());
+    const detailText = await CHUNITHM_NET_INSTANCE.sendPlaylogDetail(idx, token).then((r) => r.text());
     const detailDocument = new DOMParser().parseFromString(detailText, "text/html");
     const identifier = detailDocument.querySelector(
       ".play_data_detail_ranking_btn input[name=idx]"
@@ -215,13 +272,7 @@ async function* TraversePersonalBests(doc = document) {
   }
   for (const difficulty of DIFFICULTIES) {
     updateStatus(`Fetching scores for ${difficulty}...`);
-    const resp = await fetch(`${BASE_URL}/record/musicGenre/send${difficulty}`, {
-      method: "POST",
-      body: `genre=99&token=${token}`,
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      }
-    }).then((r) => r.text());
+    const resp = await CHUNITHM_NET_INSTANCE.sendMusicDifficulty(difficulty, token).then((r) => r.text());
     const scoreDocument = new DOMParser().parseFromString(resp, "text/html");
     const scoreElements = scoreDocument.querySelectorAll(".musiclist_box");
     for (const e of scoreElements) {
@@ -290,12 +341,17 @@ async function SubmitScores(options) {
     scores,
     classes
   };
-  const jsonBody = JSON.stringify(body);
-  console.debug(body);
   if (__DEV__ && KT_SELECTED_CONFIG === "prod") {
     console.log("Currently in development mode. Scores will not be uploaded to Kamaitachi.");
+    const blob = new Blob([JSON.stringify(body, null, 4)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `kt-chunithm-site-importer-${(/* @__PURE__ */ new Date()).valueOf()}.json`;
+    anchor.click();
     return;
   }
+  const jsonBody = JSON.stringify(body);
   document.querySelector("#kt-import-button")?.remove();
   updateStatus("Submitting scores...");
   const resp = await fetch(
@@ -406,7 +462,7 @@ function addNav() {
     const navRecent = document.createElement("a");
     const navRecentText = "Import recent scores (preferred)";
     navRecent.onclick = async () => {
-      const req = await fetch(`${BASE_URL}/record/playlog`);
+      const req = await CHUNITHM_NET_INSTANCE.playlog();
       const docu = new DOMParser().parseFromString(await req.text(), "text/html");
       await ExecuteRecentImport(docu);
     };
