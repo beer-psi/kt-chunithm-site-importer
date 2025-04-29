@@ -1,4 +1,4 @@
-**# kt-chunithm-site-importer
+# kt-chunithm-site-importer
 
 Import scores from https://chunithm-net-eng.com/mobile to Kamaitachi
 
