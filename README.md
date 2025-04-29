@@ -1,4 +1,4 @@
-# kt-chunithm-site-importer
+ # kt-chunithm-site-importer
 
 Import scores from https://chunithm-net-eng.com or https://new.chunithm-net.com to Kamaitachi
 
@@ -15,7 +15,7 @@ Import scores from https://chunithm-net-eng.com or https://new.chunithm-net.com 
 ### With a bookmarklet
 (view this site from <https://beer-psi.github.io/kt-chunithm-site-importer/>)
 
-1. Bookmark this link by dragging it to the bookmarks bar: [Kamaitachi CHUNITHM Site Importer](javascript:void(function(d){if(d.location.host==='chunithm-net-eng.com')document.body.appendChild(document.createElement('script')).src='https://beer-psi.github.io/kt-chunithm-site-importer/kt-chunithm-site-importer.min.js?t='+Math.floor(Date.now()/60000)})(document);).
+1. Bookmark this link by dragging it to the bookmarks bar: [Kamaitachi CHUNITHM Site Importer](javascript:void(function(d){if(['chunithm-net-eng.com','new.chunithm-net.com'].includes(d.location.host))document.body.appendChild(document.createElement('script')).src='https://beer-psi.github.io/kt-chunithm-site-importer/kt-chunithm-site-importer.min.js?t='+Math.floor(Date.now()/60000)})(document);).
 
 ## Usage
 1. Go to CHUNITHM-NET ([International](https://chunithm-net-eng.com), [Japan](https://new.chunithm-net.com/)) and log in.
