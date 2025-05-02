@@ -147,7 +147,7 @@ function getDifficulty(row, selector) {
 }
 function calculateLamp(lampImages) {
   const clear = lampImages.some(
-    (i) => i.includes("icon_clear") || i.includes("icon_course_clear") || i.includes("icon_hard") || i.includes("icon_absolute") || i.includes("icon_absolutep") || i.includes("icon_catastrophy")
+    (i) => i.includes("icon_clear") || i.includes("icon_course_clear") || i.includes("icon_hard") || i.includes("icon_absolute") || i.includes("icon_brave") || i.includes("icon_catastrophy")
   );
   const fc = lampImages.some((i) => i.includes("icon_fullcombo"));
   const aj = lampImages.some((i) => i.includes("icon_alljustice"));

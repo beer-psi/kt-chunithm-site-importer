@@ -292,7 +292,7 @@ function calculateLamp(lampImages: Array<string>): ChunithmLamps {
 			i.includes("icon_course_clear") ||
 			i.includes("icon_hard") ||
 			i.includes("icon_absolute") ||
-			i.includes("icon_absolutep") ||
+			i.includes("icon_brave") ||
 			i.includes("icon_catastrophy")
 	);
 	const fc = lampImages.some((i) => i.includes("icon_fullcombo"));
