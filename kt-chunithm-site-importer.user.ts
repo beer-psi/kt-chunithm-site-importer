@@ -39,7 +39,8 @@ const MAX_SCORE = 1_010_000;
 const DIFFICULTIES = ["Basic", "Advanced", "Expert", "Master", "Ultima"] as const;
 const SKILL_CLASSES = ["DAN_I", "DAN_II", "DAN_III", "DAN_IV", "DAN_V", "DAN_INFINITE"] as const;
 
-type ChunithmLamps = "ALL JUSTICE CRITICAL" | "ALL JUSTICE" | "CLEAR" | "FAILED" | "FULL COMBO";
+type ChunithmClearLamp = "CATASTROPHY" | "ABSOLUTE" | "BRAVE" | "HARD" | "CLEAR" | "FAILED";
+type ChunithmNoteLamp = "ALL JUSTICE CRITICAL" | "ALL JUSTICE" | "FULL COMBO" | "NONE"
 
 interface Classes {
 	dan?: typeof SKILL_CLASSES[number];
@@ -57,7 +58,8 @@ interface BatchManualScore {
 	matchType: string;
 	difficulty: string;
 	score: number;
-	lamp: ChunithmLamps;
+	noteLamp: ChunithmNoteLamp;
+	clearLamp: ChunithmClearLamp;
 	judgements?: {
 		jcrit: number;
 		justice: number;
@@ -285,29 +287,31 @@ function getDifficulty(row: Element, selector: string) {
 	return difficulty;
 }
 
-function calculateLamp(lampImages: Array<string>): ChunithmLamps {
-	const clear = lampImages.some(
-		(i) =>
-			i.includes("icon_clear") ||
-			i.includes("icon_course_clear") ||
-			i.includes("icon_hard") ||
-			i.includes("icon_absolute") ||
-			i.includes("icon_brave") ||
-			i.includes("icon_catastrophy")
-	);
-	const fc = lampImages.some((i) => i.includes("icon_fullcombo"));
-	const aj = lampImages.some((i) => i.includes("icon_alljustice"));
-	const ajc = lampImages.some((i) => i.includes("icon_alljusticecritical"));
+function calculateLamps(lampImages: Array<string>): { noteLamp: ChunithmNoteLamp; clearLamp: ChunithmClearLamp } {
+	let noteLamp: ChunithmNoteLamp = "NONE";
+	let clearLamp: ChunithmClearLamp = "FAILED";
 
-	if (aj) {
-		return ajc ? "ALL JUSTICE CRITICAL" : "ALL JUSTICE";
+	if (lampImages.some((i) => i.includes("icon_alljusticecritical"))) {
+		noteLamp = "ALL JUSTICE CRITICAL";
+	} else if (lampImages.some((i) => i.includes("icon_alljustice"))) {
+		noteLamp = "ALL JUSTICE";
+	} else if (lampImages.some((i) => i.includes("icon_fullcombo"))) {
+		noteLamp = "FULL COMBO";
 	}
 
-	if (fc) {
-		return "FULL COMBO";
+	if (lampImages.some((i) => i.includes("icon_catastrophy"))) {
+		clearLamp = "CATASTROPHY";
+	} else if (lampImages.some((i) => i.includes("icon_absolute"))) {
+		clearLamp = "ABSOLUTE";
+	} else if (lampImages.some((i) => i.includes("icon_brave"))) {
+		clearLamp = "BRAVE";
+	} else if (lampImages.some((i) => i.includes("icon_hard"))) {
+		clearLamp = "HARD";
+	} else if (lampImages.some((i) => i.includes("icon_clear") || i.includes("icon_course_clear"))) {
+		clearLamp = "CLEAR";
 	}
 
-	return clear ? "CLEAR" : "FAILED";
+	return { noteLamp, clearLamp };
 }
 
 function updateStatus(message: string) {
@@ -380,7 +384,7 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 
 		const scoreData: BatchManualScore = {
 			score,
-			lamp: score === MAX_SCORE ? "ALL JUSTICE CRITICAL" : calculateLamp(lampImages),
+			...calculateLamps(lampImages),
 			matchType: "inGameID",
 			identifier: "",
 			difficulty,
@@ -441,10 +445,12 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 			attack: getNumber(detailDocument, ".text_attack"),
 			miss: getNumber(detailDocument, ".text_miss"),
 		};
+		const lamps = calculateLamps(lampImages);
 
 		scoreData.identifier = identifier;
 		scoreData.matchType = "inGameID";
-		scoreData.lamp = calculateLamp(lampImages);
+		scoreData.noteLamp = lamps.noteLamp;
+		scoreData.clearLamp = lamps.clearLamp;
 		scoreData.judgements = judgements;
 		scoreData.optional = {
 			maxCombo: getNumber(detailDocument, ".play_data_detail_maxcombo_block"),
@@ -491,7 +497,7 @@ async function* TraversePersonalBests(doc: Document = document) {
 
 			const scoreData: BatchManualScore = {
 				score,
-				lamp: score === MAX_SCORE ? "ALL JUSTICE CRITICAL" : calculateLamp(lampImages),
+				...calculateLamps(lampImages),
 				matchType: "inGameID",
 				identifier,
 				difficulty: difficulty.toUpperCase(),

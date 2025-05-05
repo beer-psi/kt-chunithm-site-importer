@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	 kt-chunithm-site-importer
-// @version  0.3.9
+// @version  0.3.10
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @connect  kamai.tachi.ac
@@ -32,7 +32,6 @@ var KT_CONFIGS = {
 };
 var KT_BASE_URL = KT_CONFIGS[KT_SELECTED_CONFIG].baseUrl;
 var KT_CLIENT_ID = KT_CONFIGS[KT_SELECTED_CONFIG].clientId;
-var MAX_SCORE = 101e4;
 var DIFFICULTIES = ["Basic", "Advanced", "Expert", "Master", "Ultima"];
 var SKILL_CLASSES = ["DAN_I", "DAN_II", "DAN_III", "DAN_IV", "DAN_V", "DAN_INFINITE"];
 if (typeof GM_fetch !== "undefined") {
@@ -145,20 +144,28 @@ function getDifficulty(row, selector) {
   }
   return difficulty;
 }
-function calculateLamp(lampImages) {
-  const clear = lampImages.some(
-    (i) => i.includes("icon_clear") || i.includes("icon_course_clear") || i.includes("icon_hard") || i.includes("icon_absolute") || i.includes("icon_brave") || i.includes("icon_catastrophy")
-  );
-  const fc = lampImages.some((i) => i.includes("icon_fullcombo"));
-  const aj = lampImages.some((i) => i.includes("icon_alljustice"));
-  const ajc = lampImages.some((i) => i.includes("icon_alljusticecritical"));
-  if (aj) {
-    return ajc ? "ALL JUSTICE CRITICAL" : "ALL JUSTICE";
+function calculateLamps(lampImages) {
+  let noteLamp = "NONE";
+  let clearLamp = "FAILED";
+  if (lampImages.some((i) => i.includes("icon_alljusticecritical"))) {
+    noteLamp = "ALL JUSTICE CRITICAL";
+  } else if (lampImages.some((i) => i.includes("icon_alljustice"))) {
+    noteLamp = "ALL JUSTICE";
+  } else if (lampImages.some((i) => i.includes("icon_fullcombo"))) {
+    noteLamp = "FULL COMBO";
   }
-  if (fc) {
-    return "FULL COMBO";
+  if (lampImages.some((i) => i.includes("icon_catastrophy"))) {
+    clearLamp = "CATASTROPHY";
+  } else if (lampImages.some((i) => i.includes("icon_absolute"))) {
+    clearLamp = "ABSOLUTE";
+  } else if (lampImages.some((i) => i.includes("icon_brave"))) {
+    clearLamp = "BRAVE";
+  } else if (lampImages.some((i) => i.includes("icon_hard"))) {
+    clearLamp = "HARD";
+  } else if (lampImages.some((i) => i.includes("icon_clear") || i.includes("icon_course_clear"))) {
+    clearLamp = "CLEAR";
   }
-  return clear ? "CLEAR" : "FAILED";
+  return { noteLamp, clearLamp };
 }
 function updateStatus(message) {
   let statusElem = document.querySelector("#kt-import-status");
@@ -210,7 +217,7 @@ async function* TraverseRecents(doc = document, fetchScoresSince = 0) {
     ].map((e2) => e2.src);
     const scoreData = {
       score,
-      lamp: score === MAX_SCORE ? "ALL JUSTICE CRITICAL" : calculateLamp(lampImages),
+      ...calculateLamps(lampImages),
       matchType: "inGameID",
       identifier: "",
       difficulty,
@@ -254,9 +261,11 @@ async function* TraverseRecents(doc = document, fetchScoresSince = 0) {
       attack: getNumber(detailDocument, ".text_attack"),
       miss: getNumber(detailDocument, ".text_miss")
     };
+    const lamps = calculateLamps(lampImages);
     scoreData.identifier = identifier;
     scoreData.matchType = "inGameID";
-    scoreData.lamp = calculateLamp(lampImages);
+    scoreData.noteLamp = lamps.noteLamp;
+    scoreData.clearLamp = lamps.clearLamp;
     scoreData.judgements = judgements;
     scoreData.optional = {
       maxCombo: getNumber(detailDocument, ".play_data_detail_maxcombo_block")
@@ -287,7 +296,7 @@ async function* TraversePersonalBests(doc = document) {
       ].map((e2) => e2.src);
       const scoreData = {
         score,
-        lamp: score === MAX_SCORE ? "ALL JUSTICE CRITICAL" : calculateLamp(lampImages),
+        ...calculateLamps(lampImages),
         matchType: "inGameID",
         identifier,
         difficulty: difficulty.toUpperCase()
