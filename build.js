@@ -5,7 +5,7 @@ const pkg = JSON.parse(fs.readFileSync("./package.json", "utf-8"));
 const userscriptHeader = `/* eslint-disable no-console */
 /* eslint-disable camelcase */
 // ==UserScript==
-// @name	 kt-chunithm-site-importer
+// @name	   kt-chunithm-site-importer
 // @version  ${pkg.version}
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
@@ -13,7 +13,7 @@ const userscriptHeader = `/* eslint-disable no-console */
 // @author	 beerpsi
 // @match    https://chunithm-net-eng.com/mobile/home/
 // @match    https://chunithm-net-eng.com/mobile/record/*
-// @match	 https://new.chunithm-net.com/chuni-mobile/html/mobile/home/
+// @match	   https://new.chunithm-net.com/chuni-mobile/html/mobile/home/
 // @match    https://new.chunithm-net.com/chuni-mobile/html/mobile/record/*
 // @require  https://cdn.jsdelivr.net/npm/@trim21/gm-fetch
 // ==/UserScript==`;

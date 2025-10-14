@@ -14,7 +14,7 @@
 // @require  https://cdn.jsdelivr.net/npm/@trim21/gm-fetch
 // ==/UserScript==
 
-const __DEV__ = false;
+const __DEV__ = true;
 const REGION = location.hostname === "chunithm-net-eng.com" ? "intl" : "jp";
 const BASE_URL =
 	REGION === "intl"
@@ -304,13 +304,14 @@ function parseDate(timestamp: string): Date {
 	return new Date(isoTime);
 }
 
-function getDifficulty(row: Element, selector: string) {
+function getDifficulty(row: Element | Document, selector: string) {
 	// https://chunithm-net-eng.com/mobile/images/musiclevel_expert.png
 	const src = row.querySelector<HTMLImageElement>(selector)?.src;
 
 	if (!src) {
 		throw new Error(
-			`Could not determine image source for element ${row.outerHTML} with selector ${selector}`,
+			// @ts-ignore
+			`Could not determine image source for element ${row.outerHTML ?? row} with selector ${selector}`,
 		);
 	}
 
@@ -387,36 +388,89 @@ function updateStatus(message: string) {
 	statusElem.innerText = message;
 }
 
-async function* TraverseRecents(
-	doc: Document = document,
-	fetchScoresSince = 0,
+function ParseRecentScore(
+	e: HTMLElement | Document,
+	isDetailed: boolean = false,
 ) {
-	const scoreElems: Array<HTMLElement> = Array.prototype.filter.call(
-		doc.querySelectorAll<HTMLElement>(".frame02.w400"),
-		(e: Element, i: number) => {
-			const timestamp = e.querySelector<HTMLElement>(
-				".play_datalist_date, .box_inner01",
-			)?.innerText;
+	const title = e.querySelector<HTMLDivElement>(
+		".play_musicdata_title",
+	)?.innerText;
 
-			if (!timestamp) {
-				console.warn(`Could not retrieve timestamp for score with index ${i}.`);
-				return true;
-			}
+	if (!title) {
+		throw new Error("Recent score card does not contain a title.");
+	}
 
-			const timeAchieved = parseDate(timestamp).valueOf();
+	const difficulty = getDifficulty(e, ".play_track_result img");
 
-			return timeAchieved > fetchScoresSince;
-		},
-	);
+	const timestamp = e.querySelector<HTMLElement>(
+		".play_datalist_date, .box_inner01",
+	)?.innerText;
+	const timeAchieved = timestamp ? parseDate(timestamp).valueOf() : null;
 
-	const sinceDateString = fetchScoresSince
-		? ` since ${new Date(fetchScoresSince).toLocaleDateString()}...`
-		: "...";
+	const score = getNumber(e, ".play_musicdata_score_text");
+
+	const lampImages = [
+		...e.querySelectorAll<HTMLImageElement>(".play_musicdata_icon img"),
+	].map((e) => e.src);
+	const lamps = calculateLamps(lampImages);
+
+	const scoreData: BatchManualScore = {
+		score,
+		...lamps,
+		matchType: "songTitle",
+		identifier: title,
+		difficulty,
+		timeAchieved,
+	};
+
+	try {
+		scoreData.judgements = {
+			jcrit: getNumber(e, ".text_critical"),
+			justice: getNumber(e, ".text_justice"),
+			attack: getNumber(e, ".text_attack"),
+			miss: getNumber(e, ".text_miss"),
+		};
+	} catch (_) {}
+
+	try {
+		scoreData.optional = {
+			maxCombo: getNumber(e, ".play_data_detail_maxcombo_block"),
+		};
+	} catch (_) {}
+
+	const identifier = e.querySelector<HTMLInputElement>(
+		".play_data_detail_ranking_btn input[name=idx]",
+	)?.value;
+
+	if (identifier) {
+		scoreData.identifier = identifier;
+		scoreData.matchType = "inGameID";
+	} else if (isDetailed) {
+		// This happens because
+		// - CHUNITHM-NET International is fucked
+		// - Have not paid for standard course in CHUNITHM-NET Japan
+		// - CHUNITHM-NET China (which removed the ranking button due to username abuse)
+		console.warn(
+			`Missing inGameID element for score ${scoreData.identifier} [${scoreData.difficulty}]. Yielding score with songTitle matching, which may cause inaccuracies.`,
+		);
+
+		if (REGION === "jp") {
+			console.log(
+				"To retrieve full score details, you may need to purchase the Standard Course subscription: https://otogame-net.com/chunithm",
+			);
+		}
+	}
+
+	return scoreData;
+}
+
+async function* TraverseRecents(doc: Document = document) {
+	const scoreElems: Array<HTMLElement> = [
+		...doc.querySelectorAll<HTMLElement>(".frame02.w400"),
+	];
 
 	for (let i = 0; i < scoreElems.length; i++) {
-		updateStatus(
-			`Fetching score ${i + 1}/${scoreElems.length}${sinceDateString}`,
-		);
+		updateStatus(`Fetching score ${i + 1}/${scoreElems.length}...`);
 
 		const e = scoreElems[i];
 
@@ -427,39 +481,25 @@ async function* TraverseRecents(
 			continue;
 		}
 
-		const difficulty = getDifficulty(e, ".play_track_result img");
-
-		if (difficulty === "WORLD'S END") {
-			// we don't accept world's end scores
+		let scoreData: BatchManualScore;
+		try {
+			scoreData = ParseRecentScore(e);
+		} catch (e) {
+			console.error(
+				`There was an error parsing score ${i + 1}/${scoreElems.length}`,
+				e,
+			);
 			continue;
 		}
-
-		const timestamp = e.querySelector<HTMLElement>(
-			".play_datalist_date, .box_inner01",
-		)?.innerText;
-		const timeAchieved = timestamp ? parseDate(timestamp).valueOf() : null;
-
-		const score = getNumber(e, ".play_musicdata_score_text");
-		const lampImages = [
-			...e.querySelectorAll<HTMLImageElement>(".play_musicdata_icon img"),
-		].map((e) => e.src);
-
-		const scoreData: BatchManualScore = {
-			score,
-			...calculateLamps(lampImages),
-			matchType: "inGameID",
-			identifier: "",
-			difficulty,
-			timeAchieved,
-		};
 
 		const idx = e.querySelector<HTMLInputElement>("input[name=idx]")?.value;
 		const token = e.querySelector<HTMLInputElement>("input[name=token]")?.value;
 
 		if (!idx || !token) {
 			console.warn(
-				`Could not retrieve parameters for fetching details of score with index ${i}`,
+				`Could not retrieve parameters for fetching details of score with index ${i}. Yielding incomplete score.`,
 			);
+			yield scoreData;
 			continue;
 		}
 
@@ -474,59 +514,14 @@ async function* TraverseRecents(
 			"text/html",
 		);
 
-		const identifier = detailDocument.querySelector<HTMLInputElement>(
-			".play_data_detail_ranking_btn input[name=idx]",
-		)?.value;
-
-		if (!identifier) {
-			// This either happens because CHUNITHM-NET International is massively fucked,
-			// or if you haven't paid for Standard Course subscription in CHUNITHM-NET Japan.
-			console.warn(
-				`Missing inGameID element for score ${
-					i + 1
-				}. Yielding incomplete score with songTitle matching, which may cause inaccuracies.`,
+		try {
+			scoreData = ParseRecentScore(detailDocument, true);
+		} catch (e) {
+			console.error(
+				`There was an error parsing score ${i + 1}/${scoreElems.length}. Yielding incomplete score.`,
+				e,
 			);
-
-			if (REGION === "jp") {
-				console.log(
-					"To retrieve full score details, you may need to purchase the Standard Course subscription: https://otogame-net.com/chunithm",
-				);
-			}
-
-			const title = e.querySelector<HTMLDivElement>(
-				".play_musicdata_title",
-			)?.innerText;
-
-			if (!title) {
-				console.error(
-					`Could not get song title for score ${i + 1}. Skipping this score.`,
-				);
-				continue;
-			}
-
-			scoreData.identifier = title;
-			scoreData.matchType = "songTitle";
-
-			yield scoreData;
-			continue;
 		}
-
-		const judgements = {
-			jcrit: getNumber(detailDocument, ".text_critical"),
-			justice: getNumber(detailDocument, ".text_justice"),
-			attack: getNumber(detailDocument, ".text_attack"),
-			miss: getNumber(detailDocument, ".text_miss"),
-		};
-		const lamps = calculateLamps(lampImages);
-
-		scoreData.identifier = identifier;
-		scoreData.matchType = "inGameID";
-		scoreData.noteLamp = lamps.noteLamp;
-		scoreData.clearLamp = lamps.clearLamp;
-		scoreData.judgements = judgements;
-		scoreData.optional = {
-			maxCombo: getNumber(detailDocument, ".play_data_detail_maxcombo_block"),
-		};
 
 		yield scoreData;
 	}
@@ -697,12 +692,14 @@ async function SubmitScores(options: SubmitScoresOptions) {
 }
 
 async function ExecuteRecentImport(doc: Document = document) {
+	// @ts-expect-error no fromAsync in libdom for some reason
 	const scores = await Array.fromAsync(TraverseRecents(doc));
 
 	await SubmitScores({ scores });
 }
 
 async function ExecutePbImport() {
+	// @ts-expect-error no fromAsync in libdom for some reason
 	const scores = await Array.fromAsync(TraversePersonalBests(document));
 
 	await SubmitScores({ scores });
