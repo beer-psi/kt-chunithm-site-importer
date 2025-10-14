@@ -19,18 +19,18 @@ const userscriptHeader = `/* eslint-disable no-console */
 // ==/UserScript==`;
 
 buildSync({
-    entryPoints: ["./kt-chunithm-site-importer.user.ts"],
-    bundle: true,
-    format: "esm",
-    banner: {
-        js: userscriptHeader
-    },
-    outfile: "./docs/kt-chunithm-site-importer.user.js",
+	entryPoints: ["./kt-chunithm-site-importer.user.ts"],
+	bundle: true,
+	format: "esm",
+	banner: {
+		js: userscriptHeader,
+	},
+	outfile: "./docs/kt-chunithm-site-importer.user.js",
 });
 
 buildSync({
-    entryPoints: ["./kt-chunithm-site-importer.user.ts"],
-    minify: true,
-    bundle: true,
-    outfile: "./docs/kt-chunithm-site-importer.min.js",
+	entryPoints: ["./kt-chunithm-site-importer.user.ts"],
+	minify: true,
+	bundle: true,
+	outfile: "./docs/kt-chunithm-site-importer.min.js",
 });

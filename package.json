@@ -1,28 +1,28 @@
 {
-  "name": "kt-chunithm-site-importer",
-  "version": "0.3.10",
-  "description": "",
-  "main": "index.js",
-  "type": "module",
-  "scripts": {
-    "build": "node build.js"
-  },
-  "keywords": [],
-  "author": "beerpsi",
-  "license": "0BSD",
-  "devDependencies": {
-    "@rollup/plugin-terser": "~0.4.0",
-    "esbuild": "~0.19.2",
-    "eslint": "~8.18.0",
-    "eslint-plugin-cadence": "~0.1.0",
-    "typescript": "~4.9.4"
-  },
-  "pnpm": {
-    "ignoredBuiltDependencies": [
-      "esbuild"
-    ],
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  }
+	"name": "kt-chunithm-site-importer",
+	"version": "0.3.10",
+	"description": "",
+	"main": "index.js",
+	"type": "module",
+	"scripts": {
+		"build": "node build.js"
+	},
+	"keywords": [],
+	"author": "beerpsi",
+	"license": "0BSD",
+	"devDependencies": {
+		"@rollup/plugin-terser": "~0.4.0",
+		"esbuild": "~0.19.2",
+		"eslint": "~8.18.0",
+		"eslint-plugin-cadence": "~0.1.0",
+		"typescript": "~4.9.4"
+	},
+	"pnpm": {
+		"ignoredBuiltDependencies": [
+			"esbuild"
+		],
+		"onlyBuiltDependencies": [
+			"esbuild"
+		]
+	}
 }

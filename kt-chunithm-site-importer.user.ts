@@ -36,15 +36,38 @@ const KT_BASE_URL = KT_CONFIGS[KT_SELECTED_CONFIG].baseUrl;
 const KT_CLIENT_ID = KT_CONFIGS[KT_SELECTED_CONFIG].clientId;
 
 const MAX_SCORE = 1_010_000;
-const DIFFICULTIES = ["Basic", "Advanced", "Expert", "Master", "Ultima"] as const;
-const SKILL_CLASSES = ["DAN_I", "DAN_II", "DAN_III", "DAN_IV", "DAN_V", "DAN_INFINITE"] as const;
+const DIFFICULTIES = [
+	"Basic",
+	"Advanced",
+	"Expert",
+	"Master",
+	"Ultima",
+] as const;
+const SKILL_CLASSES = [
+	"DAN_I",
+	"DAN_II",
+	"DAN_III",
+	"DAN_IV",
+	"DAN_V",
+	"DAN_INFINITE",
+] as const;
 
-type ChunithmClearLamp = "CATASTROPHY" | "ABSOLUTE" | "BRAVE" | "HARD" | "CLEAR" | "FAILED";
-type ChunithmNoteLamp = "ALL JUSTICE CRITICAL" | "ALL JUSTICE" | "FULL COMBO" | "NONE"
+type ChunithmClearLamp =
+	| "CATASTROPHY"
+	| "ABSOLUTE"
+	| "BRAVE"
+	| "HARD"
+	| "CLEAR"
+	| "FAILED";
+type ChunithmNoteLamp =
+	| "ALL JUSTICE CRITICAL"
+	| "ALL JUSTICE"
+	| "FULL COMBO"
+	| "NONE";
 
 interface Classes {
-	dan?: typeof SKILL_CLASSES[number];
-	emblem?: typeof SKILL_CLASSES[number];
+	dan?: (typeof SKILL_CLASSES)[number];
+	emblem?: (typeof SKILL_CLASSES)[number];
 }
 
 interface SubmitScoresOptions {
@@ -88,7 +111,9 @@ interface SuccessfulAPIResponse<T = unknown> {
 	body: T;
 }
 
-type KamaitachiAPIResponse<T = unknown> = SuccessfulAPIResponse<T> | UnsuccessfulAPIResponse;
+type KamaitachiAPIResponse<T = unknown> =
+	| SuccessfulAPIResponse<T>
+	| UnsuccessfulAPIResponse;
 
 interface QueuedImport {
 	url: string;
@@ -130,19 +155,29 @@ if (typeof GM_fetch !== "undefined") {
 	window.fetch = GM_fetch;
 }
 
-function getPreference(key: string, defaultValue: string | null = null): string | null {
+function getPreference(
+	key: string,
+	defaultValue: string | null = null,
+): string | null {
 	return (
-		localStorage.getItem(`${KT_LOCALSTORAGE_KEY_PREFIX}${key}_${KT_SELECTED_CONFIG}`) ??
-		defaultValue
+		localStorage.getItem(
+			`${KT_LOCALSTORAGE_KEY_PREFIX}${key}_${KT_SELECTED_CONFIG}`,
+		) ?? defaultValue
 	);
 }
 
 function setPreference(key: string, value: string): void {
-	localStorage.setItem(`${KT_LOCALSTORAGE_KEY_PREFIX}${key}_${KT_SELECTED_CONFIG}`, value);
+	localStorage.setItem(
+		`${KT_LOCALSTORAGE_KEY_PREFIX}${key}_${KT_SELECTED_CONFIG}`,
+		value,
+	);
 }
 
 class ChunithmNetError extends Error {
-	constructor(public errCode: number, public errDescription: string) {
+	constructor(
+		public errCode: number,
+		public errDescription: string,
+	) {
 		super(`CHUNITHM-NET error ${errCode}: ${errDescription}`);
 	}
 }
@@ -164,7 +199,7 @@ class ChunithmNet {
 
 	async sendPlaylogDetail(idx: string, token: string) {
 		const body = new URLSearchParams({ idx, token });
-		
+
 		return this.request("/record/playlog/sendPlaylogDetail/", {
 			method: "POST",
 			body,
@@ -183,7 +218,7 @@ class ChunithmNet {
 			headers: {
 				"Content-Type": "application/x-www-form-urlencoded",
 			},
-		})
+		});
 	}
 
 	private async request(path: string, init?: RequestInit) {
@@ -197,7 +232,10 @@ class ChunithmNet {
 		}
 
 		if (respUrl.pathname.endsWith("/error/")) {
-			const document = this.domParser.parseFromString(await resp.text(), "text/html");
+			const document = this.domParser.parseFromString(
+				await resp.text(),
+				"text/html",
+			);
 			const errorElems = document.querySelectorAll(".block.text_l .font_small");
 
 			if (errorElems.length === 0) {
@@ -209,9 +247,10 @@ class ChunithmNet {
 			const errCode = errCodeElem?.textContent
 				? Number(errCodeElem.textContent.split(": ")[1])
 				: -1;
-			const errDescription = errorElems.length > 1 && errorElems[1]!.textContent
-				? errorElems[1]!.textContent
-				: "An unknown error occured.";
+			const errDescription =
+				errorElems.length > 1 && errorElems[1]!.textContent
+					? errorElems[1]!.textContent
+					: "An unknown error occured.";
 
 			updateStatus(`CHUNITHM-NET error ${errCode}: ${errDescription}`);
 			throw new ChunithmNetError(errCode, errDescription);
@@ -224,7 +263,9 @@ class ChunithmNet {
 const CHUNITHM_NET_INSTANCE = new ChunithmNet(BASE_URL);
 
 function getNumber(element: Document | HTMLElement, selector: string) {
-	const numberToGet = element.querySelector<HTMLElement>(selector)?.innerText.replace(/,/gu, "");
+	const numberToGet = element
+		.querySelector<HTMLElement>(selector)
+		?.innerText.replace(/,/gu, "");
 
 	if (!numberToGet) {
 		throw new Error("Could not retrieve number.");
@@ -234,7 +275,10 @@ function getNumber(element: Document | HTMLElement, selector: string) {
 }
 
 function parseDate(timestamp: string): Date {
-	const match = /([0-9]{4})\/([0-9]{1,2})\/([0-9]{1,2}) ([0-9]{1,2}):([0-9]{2})/u.exec(timestamp);
+	const match =
+		/([0-9]{4})\/([0-9]{1,2})\/([0-9]{1,2}) ([0-9]{1,2}):([0-9]{2})/u.exec(
+			timestamp,
+		);
 
 	if (!match || match.length !== 6) {
 		throw new Error("Invalid timestamp format. Expected yyyy/MM/dd HH:mm.");
@@ -246,7 +290,7 @@ function parseDate(timestamp: string): Date {
 		string,
 		string,
 		string,
-		string
+		string,
 	];
 
 	const paddedMonth = month.padStart(2, "0");
@@ -266,11 +310,16 @@ function getDifficulty(row: Element, selector: string) {
 
 	if (!src) {
 		throw new Error(
-			`Could not determine image source for element ${row.outerHTML} with selector ${selector}`
+			`Could not determine image source for element ${row.outerHTML} with selector ${selector}`,
 		);
 	}
 
-	let difficulty = src.split("/").pop()?.split(".")?.[0]?.split("_")?.[1]?.toUpperCase();
+	let difficulty = src
+		.split("/")
+		.pop()
+		?.split(".")?.[0]
+		?.split("_")?.[1]
+		?.toUpperCase();
 
 	if (typeof difficulty === "undefined") {
 		throw new Error(`Could not determine difficulty from image URL ${src}`);
@@ -287,7 +336,10 @@ function getDifficulty(row: Element, selector: string) {
 	return difficulty;
 }
 
-function calculateLamps(lampImages: Array<string>): { noteLamp: ChunithmNoteLamp; clearLamp: ChunithmClearLamp } {
+function calculateLamps(lampImages: Array<string>): {
+	noteLamp: ChunithmNoteLamp;
+	clearLamp: ChunithmClearLamp;
+} {
 	let noteLamp: ChunithmNoteLamp = "NONE";
 	let clearLamp: ChunithmClearLamp = "FAILED";
 
@@ -307,7 +359,11 @@ function calculateLamps(lampImages: Array<string>): { noteLamp: ChunithmNoteLamp
 		clearLamp = "BRAVE";
 	} else if (lampImages.some((i) => i.includes("icon_hard"))) {
 		clearLamp = "HARD";
-	} else if (lampImages.some((i) => i.includes("icon_clear") || i.includes("icon_course_clear"))) {
+	} else if (
+		lampImages.some(
+			(i) => i.includes("icon_clear") || i.includes("icon_course_clear"),
+		)
+	) {
 		clearLamp = "CLEAR";
 	}
 
@@ -315,7 +371,8 @@ function calculateLamps(lampImages: Array<string>): { noteLamp: ChunithmNoteLamp
 }
 
 function updateStatus(message: string) {
-	let statusElem = document.querySelector<HTMLParagraphElement>("#kt-import-status");
+	let statusElem =
+		document.querySelector<HTMLParagraphElement>("#kt-import-status");
 
 	if (!statusElem) {
 		statusElem = document.createElement("p");
@@ -330,12 +387,15 @@ function updateStatus(message: string) {
 	statusElem.innerText = message;
 }
 
-async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) {
+async function* TraverseRecents(
+	doc: Document = document,
+	fetchScoresSince = 0,
+) {
 	const scoreElems: Array<HTMLElement> = Array.prototype.filter.call(
 		doc.querySelectorAll<HTMLElement>(".frame02.w400"),
 		(e: Element, i: number) => {
 			const timestamp = e.querySelector<HTMLElement>(
-				".play_datalist_date, .box_inner01"
+				".play_datalist_date, .box_inner01",
 			)?.innerText;
 
 			if (!timestamp) {
@@ -346,7 +406,7 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 			const timeAchieved = parseDate(timestamp).valueOf();
 
 			return timeAchieved > fetchScoresSince;
-		}
+		},
 	);
 
 	const sinceDateString = fetchScoresSince
@@ -354,13 +414,15 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 		: "...";
 
 	for (let i = 0; i < scoreElems.length; i++) {
-		updateStatus(`Fetching score ${i + 1}/${scoreElems.length}${sinceDateString}`);
+		updateStatus(
+			`Fetching score ${i + 1}/${scoreElems.length}${sinceDateString}`,
+		);
 
 		const e = scoreElems[i];
 
 		if (!e) {
 			console.warn(
-				`There was a hole in the NodeList? Element with index ${i} was null/undefined.`
+				`There was a hole in the NodeList? Element with index ${i} was null/undefined.`,
 			);
 			continue;
 		}
@@ -373,7 +435,7 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 		}
 
 		const timestamp = e.querySelector<HTMLElement>(
-			".play_datalist_date, .box_inner01"
+			".play_datalist_date, .box_inner01",
 		)?.innerText;
 		const timeAchieved = timestamp ? parseDate(timestamp).valueOf() : null;
 
@@ -396,18 +458,24 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 
 		if (!idx || !token) {
 			console.warn(
-				`Could not retrieve parameters for fetching details of score with index ${i}`
+				`Could not retrieve parameters for fetching details of score with index ${i}`,
 			);
 			continue;
 		}
 
 		// Not trying to DDOS CHUNITHM-NET.
 		// eslint-disable-next-line no-await-in-loop
-		const detailText = await CHUNITHM_NET_INSTANCE.sendPlaylogDetail(idx, token).then((r) => r.text());
-		const detailDocument = new DOMParser().parseFromString(detailText, "text/html");
+		const detailText = await CHUNITHM_NET_INSTANCE.sendPlaylogDetail(
+			idx,
+			token,
+		).then((r) => r.text());
+		const detailDocument = new DOMParser().parseFromString(
+			detailText,
+			"text/html",
+		);
 
 		const identifier = detailDocument.querySelector<HTMLInputElement>(
-			".play_data_detail_ranking_btn input[name=idx]"
+			".play_data_detail_ranking_btn input[name=idx]",
 		)?.value;
 
 		if (!identifier) {
@@ -416,19 +484,23 @@ async function* TraverseRecents(doc: Document = document, fetchScoresSince = 0) 
 			console.warn(
 				`Missing inGameID element for score ${
 					i + 1
-				}. Yielding incomplete score with songTitle matching, which may cause inaccuracies.`
+				}. Yielding incomplete score with songTitle matching, which may cause inaccuracies.`,
 			);
 
 			if (REGION === "jp") {
 				console.log(
-					"To retrieve full score details, you may need to purchase the Standard Course subscription: https://otogame-net.com/chunithm"
+					"To retrieve full score details, you may need to purchase the Standard Course subscription: https://otogame-net.com/chunithm",
 				);
 			}
 
-			const title = e.querySelector<HTMLDivElement>(".play_musicdata_title")?.innerText;
+			const title = e.querySelector<HTMLDivElement>(
+				".play_musicdata_title",
+			)?.innerText;
 
 			if (!title) {
-				console.error(`Could not get song title for score ${i + 1}. Skipping this score.`);
+				console.error(
+					`Could not get song title for score ${i + 1}. Skipping this score.`,
+				);
 				continue;
 			}
 
@@ -477,13 +549,20 @@ async function* TraversePersonalBests(doc: Document = document) {
 		updateStatus(`Fetching scores for ${difficulty}...`);
 		// Not trying to DDOS CHUNITHM-NET.
 		// eslint-disable-next-line no-await-in-loop
-		const resp = await CHUNITHM_NET_INSTANCE.sendMusicDifficulty(difficulty, token).then((r) => r.text());
+		const resp = await CHUNITHM_NET_INSTANCE.sendMusicDifficulty(
+			difficulty,
+			token,
+		).then((r) => r.text());
 		const scoreDocument = new DOMParser().parseFromString(resp, "text/html");
-		const scoreElements = scoreDocument.querySelectorAll<HTMLElement>(".musiclist_box");
+		const scoreElements =
+			scoreDocument.querySelectorAll<HTMLElement>(".musiclist_box");
 
 		for (const e of scoreElements) {
-			const scoreElem = e.querySelector<HTMLElement>(".play_musicdata_highscore .text_b");
-			const identifier = e.querySelector<HTMLInputElement>("input[name=idx]")?.value;
+			const scoreElem = e.querySelector<HTMLElement>(
+				".play_musicdata_highscore .text_b",
+			);
+			const identifier =
+				e.querySelector<HTMLInputElement>("input[name=idx]")?.value;
 
 			if (!scoreElem?.innerText || !identifier) {
 				continue;
@@ -527,7 +606,9 @@ async function PollStatus(pollUrl: string, importOptions: SubmitScoresOptions) {
 				? body.body.progress.toString()
 				: body.body.progress.description;
 
-		updateStatus(`Importing scores... ${body.description} Progress: ${progress}`);
+		updateStatus(
+			`Importing scores... ${body.description} Progress: ${progress}`,
+		);
 		setTimeout(PollStatus, 1000, pollUrl, importOptions);
 		return;
 	}
@@ -569,9 +650,13 @@ async function SubmitScores(options: SubmitScoresOptions) {
 	};
 
 	if (__DEV__ && KT_SELECTED_CONFIG === "prod") {
-		console.log("Currently in development mode. Scores will not be uploaded to Kamaitachi.");
-		
-		const blob = new Blob([JSON.stringify(body, null, 4)], { type: "application/json" });
+		console.log(
+			"Currently in development mode. Scores will not be uploaded to Kamaitachi.",
+		);
+
+		const blob = new Blob([JSON.stringify(body, null, 4)], {
+			type: "application/json",
+		});
 		const url = URL.createObjectURL(blob);
 		const anchor = document.createElement("a");
 
@@ -597,7 +682,7 @@ async function SubmitScores(options: SubmitScoresOptions) {
 				"x-user-intent": "true",
 			},
 			body: jsonBody,
-		}
+		},
 	).then((r) => r.json());
 
 	if (!resp.success) {
@@ -626,15 +711,23 @@ async function ExecutePbImport() {
 async function ExecuteDanImport(docu: Document = document) {
 	const classes: Classes = {};
 
-	const danElement = docu.querySelector<HTMLImageElement>(".player_classemblem_top img");
-	const danIndex = Number(danElement?.src.split("_").slice(-1)[0]?.split(".")[0] ?? "0");
+	const danElement = docu.querySelector<HTMLImageElement>(
+		".player_classemblem_top img",
+	);
+	const danIndex = Number(
+		danElement?.src.split("_").slice(-1)[0]?.split(".")[0] ?? "0",
+	);
 
 	if (danIndex > 0) {
 		classes.dan = SKILL_CLASSES[danIndex - 1];
 	}
 
-	const emblemElement = docu.querySelector<HTMLImageElement>(".player_classemblem_base img");
-	const emblemIndex = Number(emblemElement?.src.split("_").slice(-1)[0]?.split(".")[0] ?? "0");
+	const emblemElement = docu.querySelector<HTMLImageElement>(
+		".player_classemblem_base img",
+	);
+	const emblemIndex = Number(
+		emblemElement?.src.split("_").slice(-1)[0]?.split(".")[0] ?? "0",
+	);
 
 	if (emblemIndex > 0) {
 		classes.emblem = SKILL_CLASSES[emblemIndex - 1];
@@ -654,26 +747,34 @@ function setupApiKey() {
 	  </div>
 	`;
 
-	document.querySelector(".clearfix")?.insertAdjacentHTML("afterend", inputHtml);
+	document
+		.querySelector(".clearfix")
+		?.insertAdjacentHTML("afterend", inputHtml);
 
-	document.querySelector("#api-key-setup")?.addEventListener("submit", submitApiKey);
+	document
+		.querySelector("#api-key-setup")
+		?.addEventListener("submit", submitApiKey);
 }
 
 async function submitApiKey(event: Event) {
 	event.preventDefault();
 
-	const apiKey = document.querySelector<HTMLInputElement>("#api-key-form-key")?.value;
+	const apiKey =
+		document.querySelector<HTMLInputElement>("#api-key-form-key")?.value;
 
 	if (!apiKey) {
 		updateStatus("No API key received?");
 		return;
 	}
 
-	const resp: KamaitachiAPIResponse = await fetch(`${KT_BASE_URL}/api/v1/users/me`, {
-		headers: {
-			authorization: `Bearer ${apiKey}`,
+	const resp: KamaitachiAPIResponse = await fetch(
+		`${KT_BASE_URL}/api/v1/users/me`,
+		{
+			headers: {
+				authorization: `Bearer ${apiKey}`,
+			},
 		},
-	}).then((r) => r.json());
+	).then((r) => r.json());
 
 	if (!resp.success) {
 		updateStatus(`Invalid API key: ${resp.description}`);
@@ -686,12 +787,14 @@ async function submitApiKey(event: Event) {
 
 function insertImportButton(
 	message: string,
-	onClick: (this: GlobalEventHandlers, ev: MouseEvent) => unknown
+	onClick: (this: GlobalEventHandlers, ev: MouseEvent) => unknown,
 ): HTMLAnchorElement {
 	if (
 		!getPreference("api-key") &&
 		// eslint-disable-next-line no-alert
-		confirm("You don't have an API key set up. Please set up an API key before proceeding.")
+		confirm(
+			"You don't have an API key set up. Please set up an API key before proceeding.",
+		)
 	) {
 		location.href = `${BASE_URL}/home/`;
 	}
@@ -747,7 +850,10 @@ function addNav() {
 
 		navRecent.onclick = async () => {
 			const req = await CHUNITHM_NET_INSTANCE.playlog();
-			const docu = new DOMParser().parseFromString(await req.text(), "text/html");
+			const docu = new DOMParser().parseFromString(
+				await req.text(),
+				"text/html",
+			);
 
 			await ExecuteRecentImport(docu);
 		};
@@ -776,7 +882,9 @@ function addNav() {
 		navHtml.append(navDan);
 	}
 
-	document.querySelector(".clearfix")?.insertAdjacentElement("afterend", navHtml);
+	document
+		.querySelector(".clearfix")
+		?.insertAdjacentElement("afterend", navHtml);
 	navHtml.id = "kt-import-status";
 }
 
@@ -790,9 +898,12 @@ function warnPbImport() {
 
 	importButton.remove();
 
-	const newImportButton = insertImportButton("Confirm DANGEROUS operation", async () => {
-		await ExecutePbImport();
-	});
+	const newImportButton = insertImportButton(
+		"Confirm DANGEROUS operation",
+		async () => {
+			await ExecutePbImport();
+		},
+	);
 	const pbWarning = `
 	  <p id="kt-import-pb-warning" class="p_10" style="text-align: center; background-color: #fff">
 		<span style="color: #f00">WARNING!</span>
