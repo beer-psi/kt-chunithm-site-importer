@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	   kt-chunithm-site-importer
-// @version  0.3.11
+// @version  0.3.12
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @connect  kamai.tachi.ac
@@ -15,7 +15,7 @@
 // ==/UserScript==
 
 // kt-chunithm-site-importer.user.ts
-var __DEV__ = true;
+var __DEV__ = false;
 var REGION = location.hostname === "chunithm-net-eng.com" ? "intl" : "jp";
 var BASE_URL = REGION === "intl" ? "https://chunithm-net-eng.com/mobile" : "https://new.chunithm-net.com/chuni-mobile/html/mobile";
 var KT_LOCALSTORAGE_KEY_PREFIX = "__ktimport__";
