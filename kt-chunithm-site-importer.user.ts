@@ -220,7 +220,9 @@ class ChunithmNet {
 				await resp.text(),
 				"text/html",
 			);
-			const errorElems = document.querySelectorAll(".block.text_l .font_small");
+			const errorElems = document.querySelectorAll(
+				".block.text_l .font_small",
+			);
 
 			if (errorElems.length === 0) {
 				updateStatus("An unknown CHUNITHM-NET error occured.");
@@ -362,7 +364,8 @@ function updateStatus(message: string) {
 	if (!statusElem) {
 		statusElem = document.createElement("p");
 		statusElem.id = "kt-import-status";
-		statusElem.style.cssText = "text-align: center; background-color: #fff;";
+		statusElem.style.cssText =
+			"text-align: center; background-color: #fff;";
 
 		const prevElem = document.querySelector<HTMLElement>(".title");
 
@@ -477,7 +480,8 @@ async function* TraverseRecents(doc: Document = document) {
 		}
 
 		const idx = e.querySelector<HTMLInputElement>("input[name=idx]")?.value;
-		const token = e.querySelector<HTMLInputElement>("input[name=token]")?.value;
+		const token =
+			e.querySelector<HTMLInputElement>("input[name=token]")?.value;
 
 		if (!idx || !token) {
 			console.warn(
@@ -532,7 +536,10 @@ async function* TraversePersonalBests(doc: Document = document) {
 			difficulty,
 			token,
 		).then((r) => r.text());
-		const scoreDocument = new DOMParser().parseFromString(resp, "text/html");
+		const scoreDocument = new DOMParser().parseFromString(
+			resp,
+			"text/html",
+		);
 		const scoreElements =
 			scoreDocument.querySelectorAll<HTMLElement>(".musiclist_box");
 
@@ -550,7 +557,9 @@ async function* TraversePersonalBests(doc: Document = document) {
 			const score = Number(scoreElem.innerText.replace(/,/gu, ""));
 
 			const lampImages = [
-				...e.querySelectorAll<HTMLImageElement>(".play_musicdata_icon img"),
+				...e.querySelectorAll<HTMLImageElement>(
+					".play_musicdata_icon img",
+				),
 			].map((e) => e.src);
 
 			const scoreData: BatchManualScore = {
@@ -611,7 +620,48 @@ async function PollStatus(pollUrl: string, importOptions: SubmitScoresOptions) {
 }
 
 async function SubmitScores(options: SubmitScoresOptions) {
-	const { scores = [], classes } = options;
+	const { scores: newScores = [], classes: newClasses } = options;
+	const scores: Array<BatchManualScore> = JSON.parse(
+		getPreference("scores") ?? "[]",
+	);
+
+	// Save scores and classes in localStorage in case Kamaitachi is down
+	scores.push(...newScores);
+	setPreference("scores", JSON.stringify(scores));
+
+	const classes: Classes = JSON.parse(getPreference("classes") ?? "{}");
+
+	if (newClasses?.dan) {
+		if (classes.dan) {
+			classes.dan =
+				SKILL_CLASSES[
+					Math.max(
+						SKILL_CLASSES.indexOf(classes.dan),
+						SKILL_CLASSES.indexOf(newClasses.dan),
+					)
+				];
+		} else {
+			classes.dan = newClasses.dan;
+		}
+
+		setPreference("classes", JSON.stringify(classes));
+	}
+
+	if (newClasses?.emblem) {
+		if (classes.emblem) {
+			classes.emblem =
+				SKILL_CLASSES[
+					Math.max(
+						SKILL_CLASSES.indexOf(classes.emblem),
+						SKILL_CLASSES.indexOf(newClasses.emblem),
+					)
+				];
+		} else {
+			classes.emblem = newClasses.emblem;
+		}
+
+		setPreference("classes", JSON.stringify(classes));
+	}
 
 	if (scores.length === 0 && !classes?.dan && !classes?.emblem) {
 		updateStatus("Nothing to import.");
@@ -651,9 +701,9 @@ async function SubmitScores(options: SubmitScoresOptions) {
 	document.querySelector("#kt-import-button")?.remove();
 	updateStatus("Submitting scores...");
 
-	const resp: KamaitachiAPIResponse<QueuedImport> = await fetch(
-		`${KT_BASE_URL}/ir/direct-manual/import`,
-		{
+	let resp: KamaitachiAPIResponse<QueuedImport>;
+	try {
+		resp = await fetch(`${KT_BASE_URL}/ir/direct-manual/import`, {
 			method: "POST",
 			headers: {
 				authorization: `Bearer ${getPreference("api-key")}`,
@@ -661,11 +711,22 @@ async function SubmitScores(options: SubmitScoresOptions) {
 				"x-user-intent": "true",
 			},
 			body: jsonBody,
-		},
-	).then((r) => r.json());
+		}).then((r) => r.json());
+	} catch (e) {
+		updateStatus(
+			`Could not submit scores to Kamaitachi: ${e}\nYour scores are saved in browser storage and will be submitted next import.`,
+		);
+		return;
+	}
+
+	// When we reach this point, Kamaitachi has received and stored our import.
+	setPreference("scores", "[]");
+	setPreference("classes", "{}");
 
 	if (!resp.success) {
-		updateStatus(`Could not submit scores to Kamaitachi: ${resp.description}`);
+		updateStatus(
+			`Could not submit scores to Kamaitachi: ${resp.description}`,
+		);
 		return;
 	}
 

@@ -112,7 +112,9 @@ var ChunithmNet = class {
         await resp.text(),
         "text/html"
       );
-      const errorElems = document2.querySelectorAll(".block.text_l .font_small");
+      const errorElems = document2.querySelectorAll(
+        ".block.text_l .font_small"
+      );
       if (errorElems.length === 0) {
         updateStatus("An unknown CHUNITHM-NET error occured.");
         throw new ChunithmNetError(-1, "An unknown error occured.");
@@ -325,7 +327,10 @@ async function* TraversePersonalBests(doc = document) {
       difficulty,
       token
     ).then((r) => r.text());
-    const scoreDocument = new DOMParser().parseFromString(resp, "text/html");
+    const scoreDocument = new DOMParser().parseFromString(
+      resp,
+      "text/html"
+    );
     const scoreElements = scoreDocument.querySelectorAll(".musiclist_box");
     for (const e of scoreElements) {
       const scoreElem = e.querySelector(
@@ -337,7 +342,9 @@ async function* TraversePersonalBests(doc = document) {
       }
       const score = Number(scoreElem.innerText.replace(/,/gu, ""));
       const lampImages = [
-        ...e.querySelectorAll(".play_musicdata_icon img")
+        ...e.querySelectorAll(
+          ".play_musicdata_icon img"
+        )
       ].map((e2) => e2.src);
       const scoreData = {
         score,
@@ -383,7 +390,35 @@ async function PollStatus(pollUrl, importOptions) {
   updateStatus(message);
 }
 async function SubmitScores(options) {
-  const { scores = [], classes } = options;
+  const { scores: newScores = [], classes: newClasses } = options;
+  const scores = JSON.parse(
+    getPreference("scores") ?? "[]"
+  );
+  scores.push(...newScores);
+  setPreference("scores", JSON.stringify(scores));
+  const classes = JSON.parse(getPreference("classes") ?? "{}");
+  if (newClasses?.dan) {
+    if (classes.dan) {
+      classes.dan = SKILL_CLASSES[Math.max(
+        SKILL_CLASSES.indexOf(classes.dan),
+        SKILL_CLASSES.indexOf(newClasses.dan)
+      )];
+    } else {
+      classes.dan = newClasses.dan;
+    }
+    setPreference("classes", JSON.stringify(classes));
+  }
+  if (newClasses?.emblem) {
+    if (classes.emblem) {
+      classes.emblem = SKILL_CLASSES[Math.max(
+        SKILL_CLASSES.indexOf(classes.emblem),
+        SKILL_CLASSES.indexOf(newClasses.emblem)
+      )];
+    } else {
+      classes.emblem = newClasses.emblem;
+    }
+    setPreference("classes", JSON.stringify(classes));
+  }
   if (scores.length === 0 && !classes?.dan && !classes?.emblem) {
     updateStatus("Nothing to import.");
     return;
@@ -414,9 +449,9 @@ async function SubmitScores(options) {
   const jsonBody = JSON.stringify(body);
   document.querySelector("#kt-import-button")?.remove();
   updateStatus("Submitting scores...");
-  const resp = await fetch(
-    `${KT_BASE_URL}/ir/direct-manual/import`,
-    {
+  let resp;
+  try {
+    resp = await fetch(`${KT_BASE_URL}/ir/direct-manual/import`, {
       method: "POST",
       headers: {
         authorization: `Bearer ${getPreference("api-key")}`,
@@ -424,10 +459,20 @@ async function SubmitScores(options) {
         "x-user-intent": "true"
       },
       body: jsonBody
-    }
-  ).then((r) => r.json());
+    }).then((r) => r.json());
+  } catch (e) {
+    updateStatus(
+      `Could not submit scores to Kamaitachi: ${e}
+Your scores are saved in browser storage and will be submitted next import.`
+    );
+    return;
+  }
+  setPreference("scores", "[]");
+  setPreference("classes", "{}");
   if (!resp.success) {
-    updateStatus(`Could not submit scores to Kamaitachi: ${resp.description}`);
+    updateStatus(
+      `Could not submit scores to Kamaitachi: ${resp.description}`
+    );
     return;
   }
   const pollUrl = resp.body.url;
