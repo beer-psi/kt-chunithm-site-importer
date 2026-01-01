@@ -2,7 +2,7 @@
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	   kt-chunithm-site-importer
-// @version  0.3.12
+// @version  0.3.13
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @connect  kamai.tachi.ac
