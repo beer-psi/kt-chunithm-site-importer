@@ -5,17 +5,17 @@ const BASE_URL =
 		? "https://chunithm-net-eng.com/mobile"
 		: "https://new.chunithm-net.com/chuni-mobile/html/mobile";
 const KT_LOCALSTORAGE_KEY_PREFIX = "__ktimport__";
-const KT_SELECTED_CONFIG = "prod";
 const KT_CONFIGS = {
-	// "staging": {
-	// 	baseUrl: "https://staging.kamaitachi.xyz",
-	// 	clientId: "CI5ba595889dca0ebf15f700291084bbf26d199ee4",
-	// },
 	prod: {
 		baseUrl: "https://kamai.tachi.ac",
 		clientId: "CI2a215ade610e60ee433a1f1faf0f2615f250e80d",
 	},
+	v3: {
+		baseUrl: "https://dev.tachi.ac",
+		clientId: "CIfd393558520e80f8a92f885c69d4b064611af659",
+	},
 } as const;
+const KT_SELECTED_CONFIG: keyof typeof KT_CONFIGS = "prod";
 const KT_BASE_URL = KT_CONFIGS[KT_SELECTED_CONFIG].baseUrl;
 const KT_CLIENT_ID = KT_CONFIGS[KT_SELECTED_CONFIG].clientId;
 

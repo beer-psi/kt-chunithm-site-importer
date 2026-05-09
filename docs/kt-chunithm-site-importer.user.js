@@ -19,17 +19,17 @@ var __DEV__ = false;
 var REGION = location.hostname === "chunithm-net-eng.com" ? "intl" : "jp";
 var BASE_URL = REGION === "intl" ? "https://chunithm-net-eng.com/mobile" : "https://new.chunithm-net.com/chuni-mobile/html/mobile";
 var KT_LOCALSTORAGE_KEY_PREFIX = "__ktimport__";
-var KT_SELECTED_CONFIG = "prod";
 var KT_CONFIGS = {
-  // "staging": {
-  // 	baseUrl: "https://staging.kamaitachi.xyz",
-  // 	clientId: "CI5ba595889dca0ebf15f700291084bbf26d199ee4",
-  // },
   prod: {
     baseUrl: "https://kamai.tachi.ac",
     clientId: "CI2a215ade610e60ee433a1f1faf0f2615f250e80d"
+  },
+  v3: {
+    baseUrl: "https://dev.tachi.ac",
+    clientId: "CIfd393558520e80f8a92f885c69d4b064611af659"
   }
 };
+var KT_SELECTED_CONFIG = "prod";
 var KT_BASE_URL = KT_CONFIGS[KT_SELECTED_CONFIG].baseUrl;
 var KT_CLIENT_ID = KT_CONFIGS[KT_SELECTED_CONFIG].clientId;
 var DIFFICULTIES = [
