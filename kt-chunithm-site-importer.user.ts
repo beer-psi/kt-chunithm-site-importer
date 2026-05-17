@@ -26,6 +26,7 @@ const DIFFICULTIES = [
 	"Expert",
 	"Master",
 	"Ultima",
+	"WorldsEnd",
 ] as const;
 const SKILL_CLASSES = [
 	"DAN_I",
@@ -63,7 +64,7 @@ interface SubmitScoresOptions {
 interface BatchManualScore {
 	identifier: string;
 	matchType: string;
-	difficulty: string;
+	difficulty?: string;
 	score: number;
 	noteLamp: ChunithmNoteLamp;
 	clearLamp: ChunithmClearLamp;
@@ -133,11 +134,31 @@ interface ImportCompletedStatus {
 
 type ImportStatus = ImportCompletedStatus | ImportOngoingStatus;
 
+interface ChuniPenguinSongs {
+	id: number;
+	jacket: string | null;
+}
+
 declare const GM_fetch: typeof fetch | undefined;
 
 if (typeof GM_fetch !== "undefined") {
 	window.fetch = GM_fetch;
 }
+
+const jacketNameToInGameIDMap = (async () => {
+	const resp: Array<ChuniPenguinSongs> = await fetch(
+		"https://raw.githubusercontent.com/beer-psi/chuni-penguin/trunk/chuni_penguin/database/seeds/songs.json",
+	).then((r) => r.json());
+
+	return new Map(
+		resp
+			.filter(
+				(s) =>
+					s.jacket !== null && s.jacket.match(/^[0-9a-f]{16}.jpg$/u),
+			)
+			.map((s) => [s.jacket, s.id]),
+	);
+})();
 
 function getPreference(
 	key: string,
@@ -177,11 +198,11 @@ class ChunithmNet {
 		}
 	}
 
-	async playlog() {
+	playlog() {
 		return this.request("/record/playlog");
 	}
 
-	async sendPlaylogDetail(idx: string, token: string) {
+	sendPlaylogDetail(idx: string, token: string) {
 		const body = new URLSearchParams({ idx, token });
 
 		return this.request("/record/playlog/sendPlaylogDetail/", {
@@ -193,7 +214,7 @@ class ChunithmNet {
 		});
 	}
 
-	async sendMusicDifficulty(difficulty: string, token: string) {
+	sendMusicDifficulty(difficulty: string, token: string) {
 		const body = new URLSearchParams({ genre: "99", token });
 
 		return this.request(`/record/musicGenre/send${difficulty}`, {
@@ -203,6 +224,10 @@ class ChunithmNet {
 				"Content-Type": "application/x-www-form-urlencoded",
 			},
 		});
+	}
+
+	worldsEndList() {
+		return this.request("/record/worldsEndList/");
 	}
 
 	private async request(path: string, init?: RequestInit) {
@@ -375,7 +400,7 @@ function updateStatus(message: string) {
 	statusElem.innerText = message;
 }
 
-function ParseRecentScore(
+async function ParseRecentScore(
 	e: HTMLElement | Document,
 	isDetailed: boolean = false,
 ) {
@@ -383,7 +408,11 @@ function ParseRecentScore(
 		".play_musicdata_title",
 	)?.innerText;
 
-	if (!title) {
+	if (!title && isDetailed) {
+		throw new Error(
+			"To retrieve full score details, you may need to purchase the Standard Course subscription: https://otogame-net.com/chunithm",
+		);
+	} else if (!title) {
 		throw new Error("Recent score card does not contain a title.");
 	}
 
@@ -425,27 +454,37 @@ function ParseRecentScore(
 		};
 	} catch (_) {}
 
-	const identifier = e.querySelector<HTMLInputElement>(
+	const idx = e.querySelector<HTMLInputElement>(
 		".play_data_detail_ranking_btn input[name=idx]",
 	)?.value;
+	let inGameID = idx !== undefined ? Number(idx) : idx;
 
-	if (identifier) {
-		scoreData.identifier = identifier;
-		scoreData.matchType = "inGameID";
-	} else if (isDetailed) {
-		// This happens because
-		// - CHUNITHM-NET International is fucked
-		// - Have not paid for standard course in CHUNITHM-NET Japan
-		// - CHUNITHM-NET China (which removed the ranking button due to username abuse)
-		console.warn(
-			`Missing inGameID element for score ${scoreData.identifier} [${scoreData.difficulty}]. Yielding score with songTitle matching, which may cause inaccuracies.`,
-		);
+	if (inGameID === undefined) {
+		// This happens because CHUNITHM-NET China has removed rankings due to username abuse.
+		// Attempt to resolve the inGameID using the jacket URL.
+		const jacketName = e
+			.querySelector<HTMLImageElement>(".play_jacket_img img")
+			?.dataset.original?.split("/")
+			?.at(-1);
 
-		if (REGION === "jp") {
-			console.log(
-				"To retrieve full score details, you may need to purchase the Standard Course subscription: https://otogame-net.com/chunithm",
-			);
+		if (jacketName) {
+			inGameID = (await jacketNameToInGameIDMap).get(jacketName);
 		}
+	}
+
+	if (inGameID !== undefined) {
+		if (inGameID >= 8000) {
+			scoreData.identifier = inGameID.toString();
+			scoreData.matchType = "gcmInGameIDSpecialChart";
+			delete scoreData.difficulty;
+		} else {
+			scoreData.identifier = inGameID.toString();
+			scoreData.matchType = "inGameID";
+		}
+	} else {
+		console.warn(
+			`Could not resolve inGameID for score ${scoreData.identifier} [${scoreData.difficulty}]. Yielding score with songTitle matching. WORLD'S END scores will be removed.`,
+		);
 	}
 
 	return scoreData;
@@ -470,12 +509,18 @@ async function* TraverseRecents(doc: Document = document) {
 
 		let scoreData: BatchManualScore;
 		try {
-			scoreData = ParseRecentScore(e);
+			scoreData = await ParseRecentScore(e);
 		} catch (e) {
 			console.error(
 				`There was an error parsing score ${i + 1}/${scoreElems.length}`,
 				e,
 			);
+			continue;
+		}
+
+		// difficulty should NEVER be WORLD'S END, WEs are imported using the
+		// gcmInGameIDSpecialChart match type.
+		if (scoreData.difficulty === "WORLD'S END") {
 			continue;
 		}
 
@@ -503,7 +548,7 @@ async function* TraverseRecents(doc: Document = document) {
 		);
 
 		try {
-			scoreData = ParseRecentScore(detailDocument, true);
+			scoreData = await ParseRecentScore(detailDocument, true);
 		} catch (e) {
 			console.error(
 				`There was an error parsing score ${i + 1}/${scoreElems.length}. Yielding incomplete score.`,
@@ -532,18 +577,24 @@ async function* TraversePersonalBests(doc: Document = document) {
 		updateStatus(`Fetching scores for ${difficulty}...`);
 		// Not trying to DDOS CHUNITHM-NET.
 		// eslint-disable-next-line no-await-in-loop
-		const resp = await CHUNITHM_NET_INSTANCE.sendMusicDifficulty(
-			difficulty,
-			token,
+
+		const resp = await (
+			difficulty === "WorldsEnd"
+				? CHUNITHM_NET_INSTANCE.worldsEndList()
+				: CHUNITHM_NET_INSTANCE.sendMusicDifficulty(difficulty, token)
 		).then((r) => r.text());
 		const scoreDocument = new DOMParser().parseFromString(
 			resp,
 			"text/html",
 		);
 		const scoreElements =
-			scoreDocument.querySelectorAll<HTMLElement>(".musiclist_box");
+			scoreDocument.querySelectorAll<HTMLElement>("form");
 
 		for (const e of scoreElements) {
+			if (!e.querySelector(".musiclist_box")) {
+				continue;
+			}
+
 			const scoreElem = e.querySelector<HTMLElement>(
 				".play_musicdata_highscore .text_b",
 			);
@@ -562,12 +613,18 @@ async function* TraversePersonalBests(doc: Document = document) {
 				),
 			].map((e) => e.src);
 
+			const resolver =
+				Number(identifier) >= 8000
+					? { matchType: "gcmInGameIDSpecialChart", identifier }
+					: {
+							matchType: "inGameID",
+							identifier,
+							difficulty: difficulty.toUpperCase(),
+						};
 			const scoreData: BatchManualScore = {
 				score,
 				...calculateLamps(lampImages),
-				matchType: "inGameID",
-				identifier,
-				difficulty: difficulty.toUpperCase(),
+				...resolver,
 			};
 
 			yield scoreData;

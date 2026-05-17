@@ -37,7 +37,8 @@ var DIFFICULTIES = [
   "Advanced",
   "Expert",
   "Master",
-  "Ultima"
+  "Ultima",
+  "WorldsEnd"
 ];
 var SKILL_CLASSES = [
   "DAN_I",
@@ -50,6 +51,16 @@ var SKILL_CLASSES = [
 if (typeof GM_fetch !== "undefined") {
   window.fetch = GM_fetch;
 }
+var jacketNameToInGameIDMap = (async () => {
+  const resp = await fetch(
+    "https://raw.githubusercontent.com/beer-psi/chuni-penguin/trunk/chuni_penguin/database/seeds/songs.json"
+  ).then((r) => r.json());
+  return new Map(
+    resp.filter(
+      (s) => s.jacket !== null && s.jacket.match(/^[0-9a-f]{16}.jpg$/u)
+    ).map((s) => [s.jacket, s.id])
+  );
+})();
 function getPreference(key, defaultValue = null) {
   return localStorage.getItem(
     `${KT_LOCALSTORAGE_KEY_PREFIX}${key}_${KT_SELECTED_CONFIG}`
@@ -76,10 +87,10 @@ var ChunithmNet = class {
       this.baseUrl = baseUrl.substring(0, baseUrl.length - 1);
     }
   }
-  async playlog() {
+  playlog() {
     return this.request("/record/playlog");
   }
-  async sendPlaylogDetail(idx, token) {
+  sendPlaylogDetail(idx, token) {
     const body = new URLSearchParams({ idx, token });
     return this.request("/record/playlog/sendPlaylogDetail/", {
       method: "POST",
@@ -89,7 +100,7 @@ var ChunithmNet = class {
       }
     });
   }
-  async sendMusicDifficulty(difficulty, token) {
+  sendMusicDifficulty(difficulty, token) {
     const body = new URLSearchParams({ genre: "99", token });
     return this.request(`/record/musicGenre/send${difficulty}`, {
       method: "POST",
@@ -98,6 +109,9 @@ var ChunithmNet = class {
         "Content-Type": "application/x-www-form-urlencoded"
       }
     });
+  }
+  worldsEndList() {
+    return this.request("/record/worldsEndList/");
   }
   async request(path, init) {
     const url = `${this.baseUrl}${path}`;
@@ -206,11 +220,15 @@ function updateStatus(message) {
   }
   statusElem.innerText = message;
 }
-function ParseRecentScore(e, isDetailed = false) {
+async function ParseRecentScore(e, isDetailed = false) {
   const title = e.querySelector(
     ".play_musicdata_title"
   )?.innerText;
-  if (!title) {
+  if (!title && isDetailed) {
+    throw new Error(
+      "To retrieve full score details, you may need to purchase the Standard Course subscription: https://otogame-net.com/chunithm"
+    );
+  } else if (!title) {
     throw new Error("Recent score card does not contain a title.");
   }
   const difficulty = getDifficulty(e, ".play_track_result img");
@@ -246,21 +264,29 @@ function ParseRecentScore(e, isDetailed = false) {
     };
   } catch (_) {
   }
-  const identifier = e.querySelector(
+  const idx = e.querySelector(
     ".play_data_detail_ranking_btn input[name=idx]"
   )?.value;
-  if (identifier) {
-    scoreData.identifier = identifier;
-    scoreData.matchType = "inGameID";
-  } else if (isDetailed) {
-    console.warn(
-      `Missing inGameID element for score ${scoreData.identifier} [${scoreData.difficulty}]. Yielding score with songTitle matching, which may cause inaccuracies.`
-    );
-    if (REGION === "jp") {
-      console.log(
-        "To retrieve full score details, you may need to purchase the Standard Course subscription: https://otogame-net.com/chunithm"
-      );
+  let inGameID = idx !== void 0 ? Number(idx) : idx;
+  if (inGameID === void 0) {
+    const jacketName = e.querySelector(".play_jacket_img img")?.dataset.original?.split("/")?.at(-1);
+    if (jacketName) {
+      inGameID = (await jacketNameToInGameIDMap).get(jacketName);
     }
+  }
+  if (inGameID !== void 0) {
+    if (inGameID >= 8e3) {
+      scoreData.identifier = inGameID.toString();
+      scoreData.matchType = "gcmInGameIDSpecialChart";
+      delete scoreData.difficulty;
+    } else {
+      scoreData.identifier = inGameID.toString();
+      scoreData.matchType = "inGameID";
+    }
+  } else {
+    console.warn(
+      `Could not resolve inGameID for score ${scoreData.identifier} [${scoreData.difficulty}]. Yielding score with songTitle matching. WORLD'S END scores will be removed.`
+    );
   }
   return scoreData;
 }
@@ -279,12 +305,15 @@ async function* TraverseRecents(doc = document) {
     }
     let scoreData;
     try {
-      scoreData = ParseRecentScore(e);
+      scoreData = await ParseRecentScore(e);
     } catch (e2) {
       console.error(
         `There was an error parsing score ${i + 1}/${scoreElems.length}`,
         e2
       );
+      continue;
+    }
+    if (scoreData.difficulty === "WORLD'S END") {
       continue;
     }
     const idx = e.querySelector("input[name=idx]")?.value;
@@ -305,7 +334,7 @@ async function* TraverseRecents(doc = document) {
       "text/html"
     );
     try {
-      scoreData = ParseRecentScore(detailDocument, true);
+      scoreData = await ParseRecentScore(detailDocument, true);
     } catch (e2) {
       console.error(
         `There was an error parsing score ${i + 1}/${scoreElems.length}. Yielding incomplete score.`,
@@ -323,16 +352,16 @@ async function* TraversePersonalBests(doc = document) {
   }
   for (const difficulty of DIFFICULTIES) {
     updateStatus(`Fetching scores for ${difficulty}...`);
-    const resp = await CHUNITHM_NET_INSTANCE.sendMusicDifficulty(
-      difficulty,
-      token
-    ).then((r) => r.text());
+    const resp = await (difficulty === "WorldsEnd" ? CHUNITHM_NET_INSTANCE.worldsEndList() : CHUNITHM_NET_INSTANCE.sendMusicDifficulty(difficulty, token)).then((r) => r.text());
     const scoreDocument = new DOMParser().parseFromString(
       resp,
       "text/html"
     );
-    const scoreElements = scoreDocument.querySelectorAll(".musiclist_box");
+    const scoreElements = scoreDocument.querySelectorAll("form");
     for (const e of scoreElements) {
+      if (!e.querySelector(".musiclist_box")) {
+        continue;
+      }
       const scoreElem = e.querySelector(
         ".play_musicdata_highscore .text_b"
       );
@@ -346,12 +375,15 @@ async function* TraversePersonalBests(doc = document) {
           ".play_musicdata_icon img"
         )
       ].map((e2) => e2.src);
-      const scoreData = {
-        score,
-        ...calculateLamps(lampImages),
+      const resolver = Number(identifier) >= 8e3 ? { matchType: "gcmInGameIDSpecialChart", identifier } : {
         matchType: "inGameID",
         identifier,
         difficulty: difficulty.toUpperCase()
+      };
+      const scoreData = {
+        score,
+        ...calculateLamps(lampImages),
+        ...resolver
       };
       yield scoreData;
     }
