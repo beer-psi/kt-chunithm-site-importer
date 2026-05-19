@@ -2,10 +2,11 @@
 /* eslint-disable camelcase */
 // ==UserScript==
 // @name	   kt-chunithm-site-importer
-// @version  0.3.14
+// @version  0.3.15
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @connect  kamai.tachi.ac
+// @connect  raw.githubusercontent.com
 // @author	 beerpsi
 // @match    https://chunithm-net-eng.com/mobile/home/
 // @match    https://chunithm-net-eng.com/mobile/record/*

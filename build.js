@@ -10,6 +10,7 @@ const userscriptHeader = `/* eslint-disable no-console */
 // @grant    GM.xmlHttpRequest
 // @connect  kamaitachi.xyz
 // @connect  kamai.tachi.ac
+// @connect  raw.githubusercontent.com
 // @author	 beerpsi
 // @match    https://chunithm-net-eng.com/mobile/home/
 // @match    https://chunithm-net-eng.com/mobile/record/*
